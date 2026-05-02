@@ -3,49 +3,51 @@
  *
  * Reusable navigation bar used on every screen.
  * Handles Android status bar spacing automatically via useSafeAreaInsets.
- * Always shows Back and Home buttons.
- *
- * Usage: <NavBar router={router} />
+ * Responds to global theme settings (color scheme, accent, font size).
  */
 
 import { useRouter } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { T } from "../utils/theme";
+import { useAppTheme } from "../hooks/useAppTheme";
 
 export default function NavBar() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const theme = useAppTheme();
 
   return (
-    <View style={[styles.navBar, { paddingTop: insets.top + 8 }]}>
-      <Pressable onPress={() => router.back()} style={styles.navButton}>
-        <Text style={styles.navButtonText}>← Back</Text>
+    <View style={[
+      styles(theme).navBar,
+      { paddingTop: insets.top + 8 }
+    ]}>
+      <Pressable onPress={() => router.back()} style={styles(theme).navButton}>
+        <Text style={styles(theme).navButtonText}>← Back</Text>
       </Pressable>
-      <Pressable onPress={() => router.push("/hive")} style={styles.navButton}>
-        <Text style={styles.navButtonText}>🏠 Home</Text>
+      <Pressable onPress={() => router.push("/hive")} style={styles(theme).navButton}>
+        <Text style={styles(theme).navButtonText}>🏠 Home</Text>
       </Pressable>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const styles = (theme: ReturnType<typeof useAppTheme>) => StyleSheet.create({
   navBar: {
     flexDirection: "row",
-    paddingHorizontal: T.spaceMD,
+    paddingHorizontal: theme.spaceMD,
     paddingBottom: 10,
     gap: 10,
     borderBottomWidth: 1,
-    borderBottomColor: T.border,
-    backgroundColor: T.bgNav,
+    borderBottomColor: theme.border,
+    backgroundColor: theme.bgNav,
   },
   navButton: {
-    backgroundColor: T.bgCard,
+    backgroundColor: theme.bgCard,
     paddingVertical: 8,
     paddingHorizontal: 14,
-    borderRadius: T.radiusSM,
+    borderRadius: theme.radiusSM,
     borderWidth: 1,
-    borderColor: T.border,
+    borderColor: theme.border,
   },
-  navButtonText: { color: T.textSecondary, fontWeight: "700", fontSize: T.fontSM },
+  navButtonText: { color: theme.textSecondary, fontWeight: "700", fontSize: theme.fontSM },
 });
