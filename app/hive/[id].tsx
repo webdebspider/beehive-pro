@@ -84,6 +84,18 @@ export default function HiveDetailScreen() {
             <Pressable style={S.quickButton} onPress={() => router.push({ pathname: "/hive/inspection/quick", params: { id: hiveId } })}>
               <Text style={S.quickButtonText}>⚡ Quick</Text>
             </Pressable>
+            {/* Comb Guide button */}
+<Pressable
+  style={S.combButton}
+  onPress={() =>
+    router.push({
+      pathname: "/hive/comb-guide",
+      params: { id: hiveId },
+    })
+  }
+>
+  <Text style={S.combButtonText}>🔍 Comb</Text>
+</Pressable>  
             <Pressable style={S.addButton} onPress={() => router.push({ pathname: "/hive/inspection/add", params: { id: hiveId } })}>
               <Text style={S.addButtonText}>+ Add</Text>
             </Pressable>
@@ -140,6 +152,16 @@ function makeStyles(theme: ReturnType<typeof useAppTheme>) {
     titleButtons: { flexDirection: "row", gap: 8 },
     quickButton: { backgroundColor: theme.bgCardAlt, paddingVertical: 8, paddingHorizontal: 14, borderRadius: theme.radiusSM, borderWidth: 1, borderColor: theme.honey },
     quickButtonText: { color: theme.honey, fontWeight: "900", fontSize: theme.fontSM },
+    combButton: {
+      backgroundColor: theme.bgCardAlt,
+      paddingVertical: 8,
+      paddingHorizontal: 14,
+      borderRadius: theme.radiusSM,
+      borderWidth: 1,
+      borderColor: theme.honeyLight,
+},
+    combButtonText: { color: theme.honeyLight, fontWeight: "900", fontSize: theme.fontSM },
+   
     addButton: { backgroundColor: theme.green, paddingVertical: 8, paddingHorizontal: 16, borderRadius: theme.radiusSM },
     addButtonText: { color: "#fff", fontWeight: "900", fontSize: theme.fontSM },
     emptyBox: { alignItems: "center", marginTop: 40 },
@@ -155,5 +177,5 @@ function makeStyles(theme: ReturnType<typeof useAppTheme>) {
     photoStrip: { marginTop: 8, marginBottom: 8 },
     photo: { width: 90, height: 90, borderRadius: theme.radiusSM, marginRight: 8 },
     editHint: { color: theme.textMuted, fontSize: theme.fontXS, textAlign: "right", marginTop: 4 },
-  });
+   });
 }
