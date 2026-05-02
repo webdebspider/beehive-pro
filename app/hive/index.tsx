@@ -20,69 +20,35 @@ import {
   Text,
   View,
 } from "react-native";
+import NavBar from "../../components/NavBar";
 import OfflineBanner from "../../components/OfflineBanner";
 import { db } from "../../utils/firebase";
 import { T } from "../../utils/theme";
 
-type Hive = {
-  id: string;
-  name?: string;
-  location?: string;
-  notes?: string;
-};
-
-type Inspection = {
-  id: string;
-  mentorReview?: boolean;
-  queen?: string;
-  brood?: string;
-  createdAt?: any;
-  date?: string;
-};
-
-type HiveCard = Hive & {
-  inspections: Inspection[];
-  mentorCount: number;
-  latest?: Inspection;
-};
+type Hive = { id: string; name?: string; location?: string; notes?: string };
+type Inspection = { id: string; mentorReview?: boolean; queen?: string; brood?: string; createdAt?: any; date?: string };
+type HiveCard = Hive & { inspections: Inspection[]; mentorCount: number; latest?: Inspection };
 
 export default function HiveDashboard() {
   const router = useRouter();
   const [hives, setHives] = useState<HiveCard[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  useEffect(() => { loadData(); }, []);
 
   const loadData = async () => {
     try {
       setLoading(true);
       const hiveSnap = await getDocs(collection(db, "hives"));
-      const hiveList: Hive[] = hiveSnap.docs.map((d) => ({
-        id: d.id,
-        ...(d.data() as Omit<Hive, "id">),
-      }));
-
+      const hiveList: Hive[] = hiveSnap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Hive, "id">) }));
       const enriched = await Promise.all(
         hiveList.map(async (hive) => {
-          const inspSnap = await getDocs(
-            collection(db, "hives", hive.id, "inspections")
-          );
-          const inspections: Inspection[] = inspSnap.docs.map((d) => ({
-            id: d.id,
-            ...(d.data() as Omit<Inspection, "id">),
-          }));
+          const inspSnap = await getDocs(collection(db, "hives", hive.id, "inspections"));
+          const inspections: Inspection[] = inspSnap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Inspection, "id">) }));
           inspections.sort((a, b) => getTime(b) - getTime(a));
-          return {
-            ...hive,
-            inspections,
-            latest: inspections[0],
-            mentorCount: inspections.filter((i) => i.mentorReview).length,
-          };
+          return { ...hive, inspections, latest: inspections[0], mentorCount: inspections.filter((i) => i.mentorReview).length };
         })
       );
-
       enriched.sort((a, b) => b.mentorCount - a.mentorCount);
       setHives(enriched);
     } catch (e) {
@@ -107,10 +73,9 @@ export default function HiveDashboard() {
   return (
     <SafeAreaView style={styles.page}>
       <OfflineBanner />
+      <NavBar />
 
       <ScrollView contentContainerStyle={styles.content}>
-
-        {/* ── Header ── */}
         <View style={styles.header}>
           <Text style={styles.headerEmoji}>🐝</Text>
           <View>
@@ -119,7 +84,6 @@ export default function HiveDashboard() {
           </View>
         </View>
 
-        {/* ── Stats Row ── */}
         <View style={styles.statsRow}>
           <View style={styles.statCard}>
             <Text style={styles.statNumber}>{hives.length}</Text>
@@ -137,7 +101,6 @@ export default function HiveDashboard() {
           </View>
         </View>
 
-        {/* ── Mentor Alert Banner ── */}
         {totalMentorCount > 0 && (
           <View style={styles.alertBanner}>
             <Text style={styles.alertIcon}>⚠️</Text>
@@ -150,26 +113,17 @@ export default function HiveDashboard() {
           </View>
         )}
 
-        {/* ── Action Buttons ── */}
         <View style={styles.actionRow}>
-          <Pressable
-            onPress={() => router.push("/hive/add")}
-            style={styles.primaryButton}
-          >
+          <Pressable onPress={() => router.push("/hive/add")} style={styles.primaryButton}>
             <Text style={styles.primaryButtonText}>+ Add Hive</Text>
           </Pressable>
-          <Pressable
-            onPress={() => router.push("/hive/charts")}
-            style={styles.secondaryButton}
-          >
+          <Pressable onPress={() => router.push("/hive/charts")} style={styles.secondaryButton}>
             <Text style={styles.secondaryButtonText}>📊 Charts</Text>
           </Pressable>
         </View>
 
-        {/* ── Section Label ── */}
         <Text style={styles.sectionLabel}>YOUR HIVES</Text>
 
-        {/* ── Hive Cards ── */}
         {hives.length === 0 ? (
           <View style={styles.emptyBox}>
             <Text style={styles.emptyEmoji}>🪣</Text>
@@ -180,33 +134,22 @@ export default function HiveDashboard() {
           hives.map((hive) => (
             <Pressable
               key={hive.id}
-              onPress={() =>
-                router.push({ pathname: "/hive/[id]", params: { id: hive.id } })
-              }
+              onPress={() => router.push({ pathname: "/hive/[id]", params: { id: hive.id } })}
               style={[styles.card, hive.mentorCount > 0 && styles.cardAlert]}
             >
-              {/* Card header */}
               <View style={styles.cardHeader}>
                 <View style={styles.hiveIconBox}>
                   <Text style={styles.hiveIcon}>🏠</Text>
                 </View>
                 <View style={styles.cardHeaderText}>
-                  <Text style={styles.hiveName}>
-                    {hive.name || `Hive ${hive.id}`}
-                  </Text>
-                  <Text style={styles.hiveLocation}>
-                    {hive.location || "No location set"}
-                  </Text>
+                  <Text style={styles.hiveName}>{hive.name || `Hive ${hive.id}`}</Text>
+                  <Text style={styles.hiveLocation}>{hive.location || "No location set"}</Text>
                 </View>
                 <Text style={styles.cardArrow}>→</Text>
               </View>
-
-              {/* Card footer */}
               <View style={styles.cardFooter}>
                 <View style={styles.cardBadge}>
-                  <Text style={styles.cardBadgeText}>
-                    {hive.inspections.length} inspections
-                  </Text>
+                  <Text style={styles.cardBadgeText}>{hive.inspections.length} inspections</Text>
                 </View>
                 {hive.mentorCount > 0 && (
                   <View style={styles.cardBadgeWarning}>
@@ -226,10 +169,7 @@ export default function HiveDashboard() {
 
 function getTime(i?: Inspection) {
   if (!i) return 0;
-  return (
-    i.createdAt?.toDate?.()?.getTime?.() ||
-    (i.date ? new Date(i.date).getTime() : 0)
-  );
+  return i.createdAt?.toDate?.()?.getTime?.() || (i.date ? new Date(i.date).getTime() : 0);
 }
 
 const styles = StyleSheet.create({
@@ -237,135 +177,42 @@ const styles = StyleSheet.create({
   center: { flex: 1, backgroundColor: T.bg, justifyContent: "center", alignItems: "center" },
   loadingText: { color: T.textSecondary, marginTop: 12, fontSize: T.fontSM },
   content: { padding: T.spaceMD, paddingBottom: 50 },
-
-  // Header
   header: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: T.spaceLG },
   headerEmoji: { fontSize: 40 },
   title: { color: T.textPrimary, fontSize: T.fontXL, fontWeight: "900", letterSpacing: 0.5 },
   subtitle: { color: T.textMuted, fontSize: T.fontSM, marginTop: 2 },
-
-  // Stats
   statsRow: { flexDirection: "row", gap: 10, marginBottom: T.spaceMD },
-  statCard: {
-    flex: 1,
-    backgroundColor: T.bgCard,
-    padding: 14,
-    borderRadius: T.radiusMD,
-    borderWidth: 1,
-    borderColor: T.border,
-    alignItems: "center",
-  },
+  statCard: { flex: 1, backgroundColor: T.bgCard, padding: 14, borderRadius: T.radiusMD, borderWidth: 1, borderColor: T.border, alignItems: "center" },
   statCardWarning: { borderColor: T.warning, backgroundColor: T.warningBg },
   statNumber: { color: T.honey, fontSize: 28, fontWeight: "900" },
   statNumberWarning: { color: T.honeyLight },
   statLabel: { color: T.textSecondary, fontSize: T.fontXS, fontWeight: "700", marginTop: 2 },
-
-  // Alert banner
-  alertBanner: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    backgroundColor: T.warningBg,
-    borderWidth: 1,
-    borderColor: T.warning,
-    padding: T.spaceMD,
-    borderRadius: T.radiusMD,
-    marginBottom: T.spaceMD,
-  },
+  alertBanner: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: T.warningBg, borderWidth: 1, borderColor: T.warning, padding: T.spaceMD, borderRadius: T.radiusMD, marginBottom: T.spaceMD },
   alertIcon: { fontSize: 24 },
   alertTitle: { color: T.honeyLight, fontWeight: "900", fontSize: T.fontMD },
   alertBody: { color: T.textSecondary, fontSize: T.fontSM, marginTop: 2 },
-
-  // Action buttons
   actionRow: { flexDirection: "row", gap: 10, marginBottom: T.spaceMD },
-  primaryButton: {
-    flex: 1,
-    backgroundColor: T.green,
-    padding: 14,
-    borderRadius: T.radiusMD,
-    alignItems: "center",
-  },
+  primaryButton: { flex: 1, backgroundColor: T.green, padding: 14, borderRadius: T.radiusMD, alignItems: "center" },
   primaryButtonText: { color: "#fff", fontWeight: "900", fontSize: T.fontMD },
-  secondaryButton: {
-    flex: 1,
-    backgroundColor: T.bgCardAlt,
-    padding: 14,
-    borderRadius: T.radiusMD,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: T.border,
-  },
+  secondaryButton: { flex: 1, backgroundColor: T.bgCardAlt, padding: 14, borderRadius: T.radiusMD, alignItems: "center", borderWidth: 1, borderColor: T.border },
   secondaryButtonText: { color: T.textPrimary, fontWeight: "900", fontSize: T.fontMD },
-
-  // Section label
-  sectionLabel: {
-    color: T.textMuted,
-    fontSize: T.fontXS,
-    fontWeight: "800",
-    letterSpacing: 1.5,
-    marginBottom: T.spaceSM,
-    marginTop: T.spaceSM,
-  },
-
-  // Empty state
+  sectionLabel: { color: T.textMuted, fontSize: T.fontXS, fontWeight: "800", letterSpacing: 1.5, marginBottom: T.spaceSM, marginTop: T.spaceSM },
   emptyBox: { alignItems: "center", marginTop: 40 },
   emptyEmoji: { fontSize: 48, marginBottom: 12 },
   emptyText: { color: T.textPrimary, fontSize: T.fontLG, fontWeight: "800" },
   emptyHint: { color: T.textMuted, fontSize: T.fontSM, marginTop: 6 },
-
-  // Hive cards
-  card: {
-    backgroundColor: T.bgCard,
-    borderRadius: T.radiusLG,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: T.border,
-    overflow: "hidden",
-  },
+  card: { backgroundColor: T.bgCard, borderRadius: T.radiusLG, marginBottom: 12, borderWidth: 1, borderColor: T.border, overflow: "hidden" },
   cardAlert: { borderColor: T.warning },
-  cardHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    padding: T.spaceMD,
-  },
-  hiveIconBox: {
-    width: 44,
-    height: 44,
-    backgroundColor: T.bgCardAlt,
-    borderRadius: T.radiusSM,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: T.border,
-  },
+  cardHeader: { flexDirection: "row", alignItems: "center", gap: 12, padding: T.spaceMD },
+  hiveIconBox: { width: 44, height: 44, backgroundColor: T.bgCardAlt, borderRadius: T.radiusSM, justifyContent: "center", alignItems: "center", borderWidth: 1, borderColor: T.border },
   hiveIcon: { fontSize: 22 },
   cardHeaderText: { flex: 1 },
   hiveName: { color: T.textPrimary, fontWeight: "900", fontSize: T.fontMD },
   hiveLocation: { color: T.textMuted, fontSize: T.fontXS, marginTop: 2 },
   cardArrow: { color: T.honey, fontSize: 18, fontWeight: "900" },
-  cardFooter: {
-    flexDirection: "row",
-    gap: 8,
-    paddingHorizontal: T.spaceMD,
-    paddingBottom: T.spaceMD,
-  },
-  cardBadge: {
-    backgroundColor: T.bgCardAlt,
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: T.border,
-  },
+  cardFooter: { flexDirection: "row", gap: 8, paddingHorizontal: T.spaceMD, paddingBottom: T.spaceMD },
+  cardBadge: { backgroundColor: T.bgCardAlt, paddingVertical: 4, paddingHorizontal: 10, borderRadius: 20, borderWidth: 1, borderColor: T.border },
   cardBadgeText: { color: T.textSecondary, fontSize: T.fontXS, fontWeight: "700" },
-  cardBadgeWarning: {
-    backgroundColor: T.warningBg,
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: T.warning,
-  },
+  cardBadgeWarning: { backgroundColor: T.warningBg, paddingVertical: 4, paddingHorizontal: 10, borderRadius: 20, borderWidth: 1, borderColor: T.warning },
   cardBadgeWarningText: { color: T.honeyLight, fontSize: T.fontXS, fontWeight: "700" },
 });

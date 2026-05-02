@@ -8,20 +8,14 @@
 
 import { useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
-import {
-  FlatList,
-  SafeAreaView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { FlatList, SafeAreaView, StyleSheet, Text, View } from "react-native";
+import NavBar from "../components/NavBar";
 import { getAlerts } from "../utils/storage";
 import { T } from "../utils/theme";
 
 export default function Alerts() {
   const [alerts, setAlerts] = useState<any[]>([]);
 
-  // Reload alerts every time the screen comes into focus
   useFocusEffect(
     useCallback(() => {
       getAlerts().then(setAlerts);
@@ -30,9 +24,8 @@ export default function Alerts() {
 
   return (
     <SafeAreaView style={styles.page}>
+      <NavBar />
       <View style={styles.content}>
-
-        {/* Header */}
         <Text style={styles.title}>🚨 Alerts</Text>
         <Text style={styles.subtitle}>
           {alerts.length === 0
@@ -40,7 +33,6 @@ export default function Alerts() {
             : `${alerts.length} alert${alerts.length === 1 ? "" : "s"} need attention`}
         </Text>
 
-        {/* Empty state */}
         {alerts.length === 0 && (
           <View style={styles.emptyBox}>
             <Text style={styles.emptyEmoji}>✅</Text>
@@ -49,29 +41,18 @@ export default function Alerts() {
           </View>
         )}
 
-        {/* Alert list */}
         <FlatList
           data={alerts}
           keyExtractor={(i) => i.id}
           renderItem={({ item }) => (
-            <View style={[
-              styles.alertCard,
-              item.type === "critical" ? styles.alertCritical : styles.alertWarning,
-            ]}>
+            <View style={[styles.alertCard, item.type === "critical" ? styles.alertCritical : styles.alertWarning]}>
               <View style={styles.alertHeader}>
-                <Text style={styles.alertIcon}>
-                  {item.type === "critical" ? "🔴" : "⚠️"}
-                </Text>
+                <Text style={styles.alertIcon}>{item.type === "critical" ? "🔴" : "⚠️"}</Text>
                 <View>
                   <Text style={styles.alertHive}>Hive {item.hiveId}</Text>
-                  <Text style={styles.alertType}>
-                    {item.type === "critical" ? "Critical" : "Warning"}
-                  </Text>
+                  <Text style={styles.alertType}>{item.type === "critical" ? "Critical" : "Warning"}</Text>
                 </View>
-                <View style={[
-                  styles.scoreBadge,
-                  { backgroundColor: item.type === "critical" ? T.danger : T.warning }
-                ]}>
+                <View style={[styles.scoreBadge, { backgroundColor: item.type === "critical" ? T.danger : T.warning }]}>
                   <Text style={styles.scoreText}>{item.score}</Text>
                 </View>
               </View>
@@ -92,35 +73,13 @@ const styles = StyleSheet.create({
   emptyEmoji: { fontSize: 48, marginBottom: 12 },
   emptyText: { color: T.textPrimary, fontSize: T.fontMD, fontWeight: "800" },
   emptyHint: { color: T.textMuted, fontSize: T.fontSM, marginTop: 6 },
-  alertCard: {
-    padding: T.spaceMD,
-    borderRadius: T.radiusMD,
-    marginBottom: 10,
-    borderWidth: 1,
-  },
-  alertCritical: {
-    backgroundColor: T.dangerBg,
-    borderColor: T.danger,
-  },
-  alertWarning: {
-    backgroundColor: T.warningBg,
-    borderColor: T.warning,
-  },
-  alertHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
+  alertCard: { padding: T.spaceMD, borderRadius: T.radiusMD, marginBottom: 10, borderWidth: 1 },
+  alertCritical: { backgroundColor: T.dangerBg, borderColor: T.danger },
+  alertWarning: { backgroundColor: T.warningBg, borderColor: T.warning },
+  alertHeader: { flexDirection: "row", alignItems: "center", gap: 12 },
   alertIcon: { fontSize: 24 },
   alertHive: { color: T.textPrimary, fontWeight: "900", fontSize: T.fontMD },
   alertType: { color: T.textSecondary, fontSize: T.fontXS, marginTop: 2 },
-  scoreBadge: {
-    marginLeft: "auto",
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: "center",
-    alignItems: "center",
-  },
+  scoreBadge: { marginLeft: "auto", width: 44, height: 44, borderRadius: 22, justifyContent: "center", alignItems: "center" },
   scoreText: { color: "#fff", fontWeight: "900", fontSize: T.fontSM },
 });
