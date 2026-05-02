@@ -2,8 +2,8 @@
  * components/NavBar.tsx
  *
  * Reusable navigation bar used on every screen.
- * Handles Android status bar spacing automatically via useSafeAreaInsets.
- * Responds to global theme settings (color scheme, accent, font size).
+ * Handles Android status bar spacing via useSafeAreaInsets.
+ * Responds to global theme settings.
  */
 
 import { useRouter } from "expo-router";
@@ -15,31 +15,39 @@ export default function NavBar() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const theme = useAppTheme();
+  const S = makeStyles(theme);
 
   return (
-    <View style={[
-      styles(theme).navBar,
-      { paddingTop: insets.top + 8 }
-    ]}>
-      <Pressable onPress={() => router.back()} style={styles(theme).navButton}>
-        <Text style={styles(theme).navButtonText}>← Back</Text>
-      </Pressable>
-      <Pressable onPress={() => router.push("/hive")} style={styles(theme).navButton}>
-        <Text style={styles(theme).navButtonText}>🏠 Home</Text>
+    <View style={[S.navBar, { paddingTop: insets.top + 8 }]}>
+      <View style={S.leftButtons}>
+        <Pressable onPress={() => router.back()} style={S.navButton}>
+          <Text style={S.navButtonText}>← Back</Text>
+        </Pressable>
+        <Pressable onPress={() => router.push("/hive")} style={S.navButton}>
+          <Text style={S.navButtonText}>🏠 Home</Text>
+        </Pressable>
+      </View>
+      <Pressable onPress={() => router.push("/settings")} style={S.settingsButton}>
+        <Text style={S.settingsText}>⚙️</Text>
       </Pressable>
     </View>
   );
 }
 
-const styles = (theme: ReturnType<typeof useAppTheme>) => StyleSheet.create({
+const makeStyles = (theme: ReturnType<typeof useAppTheme>) => StyleSheet.create({
   navBar: {
     flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: theme.spaceMD,
     paddingBottom: 10,
-    gap: 10,
     borderBottomWidth: 1,
     borderBottomColor: theme.border,
     backgroundColor: theme.bgNav,
+  },
+  leftButtons: {
+    flexDirection: "row",
+    gap: 10,
   },
   navButton: {
     backgroundColor: theme.bgCard,
@@ -50,4 +58,13 @@ const styles = (theme: ReturnType<typeof useAppTheme>) => StyleSheet.create({
     borderColor: theme.border,
   },
   navButtonText: { color: theme.textSecondary, fontWeight: "700", fontSize: theme.fontSM },
+  settingsButton: {
+    backgroundColor: theme.bgCard,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: theme.radiusSM,
+    borderWidth: 1,
+    borderColor: theme.border,
+  },
+  settingsText: { fontSize: 18 },
 });
