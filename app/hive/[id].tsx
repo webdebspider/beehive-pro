@@ -243,13 +243,18 @@ export default function HiveDetailScreen() {
                       <View style={styles.photoRow}>
                         {photos.map((uri) => (
                           <Pressable
-                            key={uri}
-                            onPress={() =>
-                              router.push({
-                                pathname: "/hive/photo-viewer",
-                                params: { uri },
-                              })
-                            }
+  key={uri}
+  onPress={() =>
+    router.push({
+      pathname: "/hive/photo-viewer",
+      params: {
+        uri,
+        hiveId,
+        inspectionId: inspection.id,
+      },
+    })
+  }
+>
                             style={styles.photoButton}
                           >
                             <Image source={{ uri }} style={styles.photo} />
