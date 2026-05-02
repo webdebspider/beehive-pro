@@ -18,10 +18,13 @@ import { db } from "../../../utils/firebase";
 
 export default function EditInspectionScreen() {
   const router = useRouter();
-  const { id, hiveId } = useLocalSearchParams<{ id?: string; hiveId?: string }>();
+  const { inspectionId, hiveId } = useLocalSearchParams<{
+    inspectionId?: string;
+    hiveId?: string;
+  }>();
 
-  const inspectionId = id ? String(id) : "";
-  const parentHiveId = hiveId ? String(hiveId) : "";
+  const resolvedInspectionId = inspectionId ? String(inspectionId) : "";
+  const resolvedHiveId = hiveId ? String(hiveId) : "";
 
   const [notes, setNotes] = useState("");
   const [photoUris, setPhotoUris] = useState<string[]>([]);
@@ -34,9 +37,8 @@ export default function EditInspectionScreen() {
 
   const loadInspection = async () => {
     try {
-      const ref = doc(db, "hives", parentHiveId, "inspections", inspectionId);
+      const ref = doc(db, "hives", resolvedHiveId, "inspections", resolvedInspectionId);
       const snap = await getDoc(ref);
-
       if (snap.exists()) {
         const data = snap.data();
         setNotes(data.notes || "");
@@ -55,12 +57,10 @@ export default function EditInspectionScreen() {
       Alert.alert("Permission needed");
       return;
     }
-
     const result = await ImagePicker.launchImageLibraryAsync({
       allowsMultipleSelection: true,
       quality: 0.8,
     });
-
     if (!result.canceled) {
       const selected = result.assets.map((a) => a.uri);
       setPhotoUris((prev) => [...prev, ...selected]);
@@ -73,9 +73,7 @@ export default function EditInspectionScreen() {
       Alert.alert("Permission needed");
       return;
     }
-
     const result = await ImagePicker.launchCameraAsync({ quality: 0.8 });
-
     if (!result.canceled) {
       setPhotoUris((prev) => [...prev, result.assets[0].uri]);
     }
@@ -87,22 +85,15 @@ export default function EditInspectionScreen() {
 
   const handleSave = async () => {
     if (saving) return;
-
     try {
       setSaving(true);
-
       await updateDoc(
-        doc(db, "hives", parentHiveId, "inspections", inspectionId),
-        {
-          notes,
-          photoUris,
-          updatedAt: new Date(),
-        }
+        doc(db, "hives", resolvedHiveId, "inspections", resolvedInspectionId),
+        { notes, photoUris, updatedAt: new Date() }
       );
-
       router.replace({
         pathname: "/hive/[id]",
-        params: { id: parentHiveId },
+        params: { id: resolvedHiveId },
       });
     } catch (e) {
       console.log("❌ SAVE ERROR:", e);
@@ -119,12 +110,11 @@ export default function EditInspectionScreen() {
         text: "Delete",
         onPress: async () => {
           await deleteDoc(
-            doc(db, "hives", parentHiveId, "inspections", inspectionId)
+            doc(db, "hives", resolvedHiveId, "inspections", resolvedInspectionId)
           );
-
           router.replace({
             pathname: "/hive/[id]",
-            params: { id: parentHiveId },
+            params: { id: resolvedHiveId },
           });
         },
       },
@@ -141,16 +131,24 @@ export default function EditInspectionScreen() {
 
   return (
     <SafeAreaView style={styles.page}>
+      {/* Nav Bar */}
+      <View style={styles.navBar}>
+        <Pressable onPress={() => router.back()} style={styles.navButton}>
+          <Text style={styles.navButtonText}>← Back</Text>
+        </Pressable>
+        <Pressable onPress={() => router.push("/hive")} style={styles.navButton}>
+          <Text style={styles.navButtonText}>🏠 Home</Text>
+        </Pressable>
+      </View>
+
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.title}>Edit Inspection</Text>
 
         <Text style={styles.label}>Photos</Text>
-
         <View style={styles.row}>
           <Pressable style={styles.button} onPress={takePhoto}>
             <Text style={styles.buttonText}>📷 Camera</Text>
           </Pressable>
-
           <Pressable style={styles.button} onPress={pickPhoto}>
             <Text style={styles.buttonText}>🖼️ Gallery</Text>
           </Pressable>
@@ -160,6 +158,7 @@ export default function EditInspectionScreen() {
           {photoUris.map((uri) => (
             <Pressable key={uri} onPress={() => removePhoto(uri)}>
               <Image source={{ uri }} style={styles.photo} />
+              <Text style={styles.removeText}>Tap to remove</Text>
             </Pressable>
           ))}
         </View>
@@ -169,6 +168,8 @@ export default function EditInspectionScreen() {
           value={notes}
           onChangeText={setNotes}
           multiline
+          placeholder="Inspection notes"
+          placeholderTextColor="#888"
           style={styles.input}
         />
 
@@ -188,68 +189,66 @@ export default function EditInspectionScreen() {
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: "#0f172a" },
+  navBar: {
+    flexDirection: "row",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    gap: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#1e293b",
+  },
+  navButton: {
+    backgroundColor: "#1e293b",
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+  },
+  navButtonText: {
+    color: "#94a3b8",
+    fontWeight: "700",
+    fontSize: 14,
+  },
   content: { padding: 20 },
-  center: { flex: 1, justifyContent: "center", alignItems: "center" },
-
-  title: { color: "#fff", fontSize: 26, fontWeight: "800" },
+  center: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#0f172a" },
+  title: { color: "#fff", fontSize: 26, fontWeight: "800", marginBottom: 8 },
   label: { color: "#9ca3af", marginTop: 12 },
-
   row: { flexDirection: "row", gap: 10, marginTop: 8 },
-
   button: {
     backgroundColor: "#334155",
     padding: 12,
     borderRadius: 10,
     flex: 1,
   },
-
   buttonText: { color: "#fff", textAlign: "center", fontWeight: "800" },
-
   photoGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 10,
     marginTop: 10,
   },
-
-  photo: {
-    width: 110,
-    height: 110,
-    borderRadius: 10,
-  },
-
+  photo: { width: 110, height: 110, borderRadius: 10 },
+  removeText: { color: "#fca5a5", fontSize: 11, marginTop: 2, textAlign: "center" },
   input: {
     backgroundColor: "#1e293b",
     color: "#fff",
     padding: 12,
     borderRadius: 10,
-    height: 100,
+    minHeight: 100,
+    textAlignVertical: "top",
     marginTop: 8,
   },
-
   save: {
     backgroundColor: "#22c55e",
     padding: 14,
     borderRadius: 10,
     marginTop: 20,
   },
-
-  saveText: {
-    textAlign: "center",
-    fontWeight: "800",
-    color: "#0f172a",
-  },
-
+  saveText: { textAlign: "center", fontWeight: "800", color: "#0f172a" },
   delete: {
     backgroundColor: "#ef4444",
     padding: 14,
     borderRadius: 10,
     marginTop: 10,
   },
-
-  deleteText: {
-    textAlign: "center",
-    fontWeight: "800",
-    color: "#fff",
-  },
+  deleteText: { textAlign: "center", fontWeight: "800", color: "#fff" },
 });

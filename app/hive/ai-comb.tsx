@@ -1,13 +1,14 @@
+import * as FileSystem from "expo-file-system";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
 import {
-    Image,
-    Pressable,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
+  Image,
+  Pressable,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from "react-native";
 
 export default function AiCombScreen() {
@@ -17,27 +18,95 @@ export default function AiCombScreen() {
   const photoUri = uri ? String(uri) : "";
   const [analyzing, setAnalyzing] = useState(false);
   const [result, setResult] = useState("");
+  const [error, setError] = useState("");
 
   const analyzePhoto = async () => {
+    if (!photoUri) return;
     setAnalyzing(true);
+    setResult("");
+    setError("");
 
-    // Placeholder for now.
-    // Later this will call your secure backend:
-    // POST /api/analyze-comb
-    setTimeout(() => {
-      setResult(
-        "AI Comb Review placeholder:\n\nPossible things to look for:\n• Eggs: tiny white grains standing upright\n• Larvae: white curled C-shapes\n• Capped brood: darker capped cells\n• Pollen: colorful packed cells\n• Honey: smooth light caps\n\nThis is not a real AI result yet."
-      );
+    try {
+      // Read photo as base64
+      const base64 = await FileSystem.readAsStringAsync(photoUri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY || "",
+          "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify({
+          model: "claude-opus-4-5",
+          max_tokens: 1024,
+          messages: [
+            {
+              role: "user",
+              content: [
+                {
+                  type: "image",
+                  source: {
+                    type: "base64",
+                    media_type: "image/jpeg",
+                    data: base64,
+                  },
+                },
+                {
+                  type: "text",
+                  text: `You are an expert beekeeper reviewing a photo of honeycomb. Analyze this comb photo and provide a clear, practical report covering:
+
+1. **Eggs** — Do you see any? Describe what you observe.
+2. **Larvae** — Open or capped? Healthy C-shape or concerning?
+3. **Capped Brood** — Color and pattern? Sunken or perforated caps (signs of disease)?
+4. **Honey & Nectar** — Capped or uncapped? Estimated fill level?
+5. **Pollen** — Present? Colors visible?
+6. **Warning Signs** — Anything concerning (chalkbrood, sacbrood, AFB, varroa signs, laying workers, etc.)?
+7. **Overall Assessment** — One sentence summary of hive health based on this frame.
+
+Be concise and practical. If the image is unclear or not a comb photo, say so.`,
+                },
+              ],
+            },
+          ],
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.content && data.content[0]?.text) {
+        setResult(data.content[0].text);
+      } else if (data.error) {
+        setError(`API error: ${data.error.message}`);
+      } else {
+        setError("No result returned. Try again.");
+      }
+    } catch (e) {
+      console.log("AI ANALYZE ERROR", e);
+      setError("Something went wrong. Check your connection and try again.");
+    } finally {
       setAnalyzing(false);
-    }, 800);
+    }
   };
 
   return (
     <SafeAreaView style={styles.page}>
+      {/* Nav Bar */}
+      <View style={styles.navBar}>
+        <Pressable onPress={() => router.back()} style={styles.navButton}>
+          <Text style={styles.navButtonText}>← Back</Text>
+        </Pressable>
+        <Pressable onPress={() => router.push("/hive")} style={styles.navButton}>
+          <Text style={styles.navButtonText}>🏠 Home</Text>
+        </Pressable>
+      </View>
+
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.title}>AI Comb Review</Text>
         <Text style={styles.subtitle}>
-          This will help identify eggs, larvae, brood, pollen, honey, and warning signs.
+          Identifies eggs, larvae, brood, pollen, honey, and warning signs.
         </Text>
 
         {photoUri ? (
@@ -57,20 +126,22 @@ export default function AiCombScreen() {
           ]}
         >
           <Text style={styles.analyzeText}>
-            {analyzing ? "Analyzing..." : "Analyze Comb"}
+            {analyzing ? "Analyzing... 🐝" : "Analyze Comb"}
           </Text>
         </Pressable>
 
-        {result ? (
-          <View style={styles.resultBox}>
-            <Text style={styles.resultTitle}>Review Result</Text>
-            <Text style={styles.resultText}>{result}</Text>
+        {error ? (
+          <View style={styles.errorBox}>
+            <Text style={styles.errorText}>{error}</Text>
           </View>
         ) : null}
 
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <Text style={styles.backText}>Back</Text>
-        </Pressable>
+        {result ? (
+          <View style={styles.resultBox}>
+            <Text style={styles.resultTitle}>🔍 Review Result</Text>
+            <Text style={styles.resultText}>{result}</Text>
+          </View>
+        ) : null}
       </ScrollView>
     </SafeAreaView>
   );
@@ -78,17 +149,28 @@ export default function AiCombScreen() {
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: "#020617" },
-  content: { padding: 20, paddingBottom: 50 },
-  title: {
-    color: "#fff",
-    fontSize: 30,
-    fontWeight: "900",
+  navBar: {
+    flexDirection: "row",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    gap: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#1e293b",
   },
-  subtitle: {
+  navButton: {
+    backgroundColor: "#1e293b",
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+  },
+  navButtonText: {
     color: "#94a3b8",
-    marginTop: 6,
-    marginBottom: 16,
+    fontWeight: "700",
+    fontSize: 14,
   },
+  content: { padding: 20, paddingBottom: 50 },
+  title: { color: "#fff", fontSize: 30, fontWeight: "900" },
+  subtitle: { color: "#94a3b8", marginTop: 6, marginBottom: 16 },
   photo: {
     width: "100%",
     height: 360,
@@ -102,23 +184,26 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  emptyText: {
-    color: "#94a3b8",
-  },
+  emptyText: { color: "#94a3b8" },
   analyzeButton: {
     backgroundColor: "#22c55e",
     padding: 16,
     borderRadius: 12,
     marginTop: 16,
   },
-  disabledButton: {
-    backgroundColor: "#64748b",
-  },
+  disabledButton: { backgroundColor: "#64748b" },
   analyzeText: {
     color: "#0f172a",
     textAlign: "center",
     fontWeight: "900",
   },
+  errorBox: {
+    backgroundColor: "#450a0a",
+    padding: 14,
+    borderRadius: 12,
+    marginTop: 14,
+  },
+  errorText: { color: "#fca5a5", lineHeight: 20 },
   resultBox: {
     backgroundColor: "#1e293b",
     padding: 16,
@@ -129,20 +214,7 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "900",
     marginBottom: 8,
+    fontSize: 16,
   },
-  resultText: {
-    color: "#cbd5e1",
-    lineHeight: 20,
-  },
-  backButton: {
-    backgroundColor: "#475569",
-    padding: 14,
-    borderRadius: 12,
-    marginTop: 16,
-  },
-  backText: {
-    color: "#fff",
-    textAlign: "center",
-    fontWeight: "900",
-  },
+  resultText: { color: "#cbd5e1", lineHeight: 22 },
 });

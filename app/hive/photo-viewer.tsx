@@ -1,31 +1,42 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
-    Image,
-    Pressable,
-    SafeAreaView,
-    StyleSheet,
-    Text,
-    View,
+  Image,
+  Pressable,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  View,
 } from "react-native";
 
 export default function PhotoViewerScreen() {
   const router = useRouter();
-  const { uri } = useLocalSearchParams<{ uri?: string }>();
+
+  const { uri, hiveId, inspectionId } = useLocalSearchParams<{
+    uri?: string;
+    hiveId?: string;
+    inspectionId?: string;
+  }>();
 
   const photoUri = uri ? String(uri) : "";
+  const parentHiveId = hiveId ? String(hiveId) : "";
+  const currentInspectionId = inspectionId ? String(inspectionId) : "";
 
   return (
     <SafeAreaView style={styles.page}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <Text style={styles.backText}>← Back</Text>
+          <Text style={styles.backText}>Back</Text>
         </Pressable>
 
         <Pressable
           onPress={() =>
             router.push({
               pathname: "/hive/ai-comb",
-              params: { uri: photoUri },
+              params: {
+                uri: photoUri,
+                hiveId: parentHiveId,
+                inspectionId: currentInspectionId,
+              },
             })
           }
           disabled={!photoUri}
@@ -53,7 +64,6 @@ const styles = StyleSheet.create({
     padding: 16,
     flexDirection: "row",
     justifyContent: "space-between",
-    gap: 10,
   },
   backButton: {
     backgroundColor: "#334155",

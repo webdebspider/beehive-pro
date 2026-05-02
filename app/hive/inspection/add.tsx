@@ -32,7 +32,6 @@ export default function AddInspectionScreen() {
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality: 0.6,
     });
-
     if (!result.canceled) {
       setPhotoUris((prev) => [...prev, result.assets[0].uri]);
     }
@@ -43,7 +42,6 @@ export default function AddInspectionScreen() {
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality: 0.6,
     });
-
     if (!result.canceled) {
       setPhotoUris((prev) => [...prev, result.assets[0].uri]);
     }
@@ -55,15 +53,12 @@ export default function AddInspectionScreen() {
 
   const handleSave = async () => {
     if (saving) return;
-
     if (!hiveId) {
       Alert.alert("Missing Hive", "No hive ID was provided.");
       return;
     }
-
     try {
       setSaving(true);
-
       const docRef = await addDoc(collection(db, "hives", hiveId, "inspections"), {
         hiveId,
         queen,
@@ -74,10 +69,8 @@ export default function AddInspectionScreen() {
         createdAt: serverTimestamp(),
         date: new Date().toISOString(),
       });
-
       if (photoUris.length > 0) {
         const uploadedUrls = await uploadInspectionPhotos(hiveId, docRef.id, photoUris);
-
         await updateDoc(docRef, {
           photoUris: uploadedUrls,
           photoUrls: uploadedUrls,
@@ -85,7 +78,6 @@ export default function AddInspectionScreen() {
           updatedAt: new Date(),
         });
       }
-
       router.replace({
         pathname: "/hive/[id]",
         params: { id: hiveId },
@@ -100,6 +92,16 @@ export default function AddInspectionScreen() {
 
   return (
     <SafeAreaView style={styles.page}>
+      {/* Nav Bar */}
+      <View style={styles.navBar}>
+        <Pressable onPress={() => router.back()} style={styles.navButton}>
+          <Text style={styles.navButtonText}>← Back</Text>
+        </Pressable>
+        <Pressable onPress={() => router.push("/hive")} style={styles.navButton}>
+          <Text style={styles.navButtonText}>🏠 Home</Text>
+        </Pressable>
+      </View>
+
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.title}>Add Inspection</Text>
 
@@ -136,13 +138,12 @@ export default function AddInspectionScreen() {
           <Pressable onPress={takePhoto} style={styles.button}>
             <Text style={styles.buttonText}>Take Photo</Text>
           </Pressable>
-
           <Pressable onPress={pickPhoto} style={styles.button}>
             <Text style={styles.buttonText}>Pick Photo</Text>
           </Pressable>
         </View>
 
-        {photoUris.length > 0 ? (
+        {photoUris.length > 0 && (
           <View style={styles.photoGrid}>
             {photoUris.map((uri) => (
               <Pressable key={uri} onPress={() => removePhoto(uri)}>
@@ -151,7 +152,7 @@ export default function AddInspectionScreen() {
               </Pressable>
             ))}
           </View>
-        ) : null}
+        )}
 
         <Pressable
           onPress={handleSave}
@@ -162,18 +163,6 @@ export default function AddInspectionScreen() {
             {saving ? "Saving..." : "Save Inspection"}
           </Text>
         </Pressable>
-
-        <Pressable
-          onPress={() =>
-            router.replace({
-              pathname: "/hive/[id]",
-              params: { id: hiveId },
-            })
-          }
-          style={styles.backButton}
-        >
-          <Text style={styles.backText}>Back to Hive</Text>
-        </Pressable>
       </ScrollView>
     </SafeAreaView>
   );
@@ -181,8 +170,27 @@ export default function AddInspectionScreen() {
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: "#0f172a" },
+  navBar: {
+    flexDirection: "row",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    gap: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#1e293b",
+  },
+  navButton: {
+    backgroundColor: "#1e293b",
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+  },
+  navButtonText: {
+    color: "#94a3b8",
+    fontWeight: "700",
+    fontSize: 14,
+  },
   content: { padding: 20, paddingBottom: 50 },
-  title: { color: "#fff", fontSize: 26, fontWeight: "800" },
+  title: { color: "#fff", fontSize: 26, fontWeight: "800", marginBottom: 8 },
   label: { color: "#9ca3af", marginTop: 14, marginBottom: 6 },
   input: {
     backgroundColor: "#1e293b",
@@ -238,17 +246,6 @@ const styles = StyleSheet.create({
   },
   saveText: {
     color: "#0f172a",
-    textAlign: "center",
-    fontWeight: "800",
-  },
-  backButton: {
-    backgroundColor: "#475569",
-    padding: 14,
-    borderRadius: 10,
-    marginTop: 12,
-  },
-  backText: {
-    color: "#fff",
     textAlign: "center",
     fontWeight: "800",
   },
