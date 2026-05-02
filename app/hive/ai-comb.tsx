@@ -39,7 +39,7 @@ export default function AiCombScreen() {
 
     try {
       const base64 = await FileSystem.readAsStringAsync(photoUri, {
-        encoding: FileSystem.EncodingType.Base64,
+        encoding: "base64",
       });
 
       const response = await fetch("https://api.anthropic.com/v1/messages", {

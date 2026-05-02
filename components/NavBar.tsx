@@ -1,49 +1,51 @@
+/**
+ * components/NavBar.tsx
+ *
+ * Reusable navigation bar used on every screen.
+ * Handles Android status bar spacing automatically via useSafeAreaInsets.
+ * Always shows Back and Home buttons.
+ *
+ * Usage: <NavBar router={router} />
+ */
+
 import { useRouter } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { T } from "../utils/theme";
 
-export default function NavBar({ hiveId }: { hiveId?: string }) {
+export default function NavBar() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   return (
-    <View style={styles.row}>
-      <Pressable onPress={() => router.back()} style={styles.button}>
-        <Text style={styles.text}>← Back</Text>
+    <View style={[styles.navBar, { paddingTop: insets.top + 8 }]}>
+      <Pressable onPress={() => router.back()} style={styles.navButton}>
+        <Text style={styles.navButtonText}>← Back</Text>
       </Pressable>
-
-      <Pressable onPress={() => router.push("/hive")} style={styles.button}>
-        <Text style={styles.text}>🏠 Home</Text>
+      <Pressable onPress={() => router.push("/hive")} style={styles.navButton}>
+        <Text style={styles.navButtonText}>🏠 Home</Text>
       </Pressable>
-
-      {hiveId && (
-        <Pressable
-          onPress={() =>
-            router.push({
-              pathname: "/hive/[id]",
-              params: { id: hiveId },
-            })
-          }
-          style={styles.button}
-        >
-          <Text style={styles.text}>🐝 Hive</Text>
-        </Pressable>
-      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  row: {
+  navBar: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 10,
+    paddingHorizontal: T.spaceMD,
+    paddingBottom: 10,
+    gap: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: T.border,
+    backgroundColor: T.bgNav,
   },
-  button: {
-    backgroundColor: "#334155",
-    padding: 10,
-    borderRadius: 8,
+  navButton: {
+    backgroundColor: T.bgCard,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: T.radiusSM,
+    borderWidth: 1,
+    borderColor: T.border,
   },
-  text: {
-    color: "#fff",
-    fontWeight: "800",
-  },
+  navButtonText: { color: T.textSecondary, fontWeight: "700", fontSize: T.fontSM },
 });
