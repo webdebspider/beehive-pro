@@ -5,6 +5,10 @@
  * Tapping an inspection card navigates to the edit screen.
  * Tapping a photo navigates to the photo viewer.
  * Auto-syncs queued uploads when network is restored.
+ *
+ * Action buttons:
+ *  - + Add: full inspection with photos and notes
+ *  - ⚡ Quick: large tap-target quick inspection for field use
  */
 
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -101,24 +105,43 @@ export default function HiveDetailScreen() {
 
       <ScrollView contentContainerStyle={styles.content}>
 
-        {/* Title row */}
+        {/* Title row with action buttons */}
         <View style={styles.titleRow}>
           <Text style={styles.title}>Inspections</Text>
-          <Pressable
-            style={styles.addButton}
-            onPress={() =>
-              router.push({ pathname: "/hive/inspection/add", params: { id: hiveId } })
-            }
-          >
-            <Text style={styles.addButtonText}>+ Add</Text>
-          </Pressable>
+          <View style={styles.titleButtons}>
+            {/* Quick inspection — large tap targets, field use */}
+            <Pressable
+              style={styles.quickButton}
+              onPress={() =>
+                router.push({
+                  pathname: "/hive/inspection/quick",
+                  params: { id: hiveId },
+                })
+              }
+            >
+              <Text style={styles.quickButtonText}>⚡ Quick</Text>
+            </Pressable>
+
+            {/* Full inspection — photos, notes, all fields */}
+            <Pressable
+              style={styles.addButton}
+              onPress={() =>
+                router.push({
+                  pathname: "/hive/inspection/add",
+                  params: { id: hiveId },
+                })
+              }
+            >
+              <Text style={styles.addButtonText}>+ Add</Text>
+            </Pressable>
+          </View>
         </View>
 
         {inspections.length === 0 && (
           <View style={styles.emptyBox}>
             <Text style={styles.emptyEmoji}>🔍</Text>
             <Text style={styles.emptyText}>No inspections yet</Text>
-            <Text style={styles.emptyHint}>Tap "+ Add" to log your first inspection</Text>
+            <Text style={styles.emptyHint}>Tap "+ Add" or "⚡ Quick" to log your first inspection</Text>
           </View>
         )}
 
@@ -154,6 +177,11 @@ export default function HiveDetailScreen() {
                     <Text style={styles.badgeText}>🐛 {inspection.brood}</Text>
                   </View>
                 ) : null}
+                {inspection.mites !== undefined && inspection.mites !== null && inspection.mites !== "" ? (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>🔬 {inspection.mites}</Text>
+                  </View>
+                ) : null}
               </View>
 
               {/* Notes */}
@@ -165,7 +193,11 @@ export default function HiveDetailScreen() {
 
               {/* Photo strip */}
               {photos.length > 0 && (
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photoStrip}>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.photoStrip}
+                >
                   {photos.map((uri) => (
                     <Pressable
                       key={uri}
@@ -221,6 +253,16 @@ const styles = StyleSheet.create({
     marginBottom: T.spaceMD,
   },
   title: { color: T.textPrimary, fontSize: T.fontLG, fontWeight: "900" },
+  titleButtons: { flexDirection: "row", gap: 8 },
+  quickButton: {
+    backgroundColor: T.bgCardAlt,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: T.radiusSM,
+    borderWidth: 1,
+    borderColor: T.honey,
+  },
+  quickButtonText: { color: T.honey, fontWeight: "900", fontSize: T.fontSM },
   addButton: {
     backgroundColor: T.green,
     paddingVertical: 8,
