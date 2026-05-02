@@ -1,25 +1,11 @@
 /**
  * app/hive/ai-comb.tsx
  *
- * AI Comb Review Screen — analyzes a honeycomb photo using the Anthropic API.
+ * AI Comb Review Screen — analyzes a comb photo using the Anthropic API.
+ * Photo is converted to base64 via expo-file-system before sending.
+ * Requires EXPO_PUBLIC_ANTHROPIC_API_KEY in .env
  *
- * Route params:
- *  - uri: local device URI of the comb photo to analyze
- *
- * Features:
- *  - Displays the selected comb photo full width
- *  - "Analyze Comb" button sends the photo to Claude via Anthropic API
- *  - Photo is converted to base64 using expo-file-system before sending
- *  - Claude responds with a structured beekeeping report covering:
- *    eggs, larvae, capped brood, honey, pollen, and warning signs
- *  - Error state shown if API call fails
- *  - Back/Home nav buttons for consistent navigation
- *
- * Requirements:
- *  - EXPO_PUBLIC_ANTHROPIC_API_KEY must be set in .env file
- *
- * Note: API key is currently used client-side (fine for dev/personal use).
- * TODO: Move to a backend proxy before public app store release.
+ * TODO: Move API call to backend proxy before public release.
  */
 
 import * as FileSystem from "expo-file-system";
@@ -34,6 +20,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { T } from "../../utils/theme";
 
 export default function AiCombScreen() {
   const router = useRouter();
@@ -44,11 +31,6 @@ export default function AiCombScreen() {
   const [result, setResult] = useState("");
   const [error, setError] = useState("");
 
-  /**
-   * Converts the photo to base64 and sends it to the Anthropic API.
-   * Uses Claude's vision capability with a beekeeping-specific prompt.
-   * The prompt requests a structured report with 7 specific categories.
-   */
   const analyzePhoto = async () => {
     if (!photoUri) return;
     setAnalyzing(true);
@@ -56,7 +38,6 @@ export default function AiCombScreen() {
     setError("");
 
     try {
-      // Convert local photo URI to base64 for API transmission
       const base64 = await FileSystem.readAsStringAsync(photoUri, {
         encoding: FileSystem.EncodingType.Base64,
       });
@@ -76,16 +57,10 @@ export default function AiCombScreen() {
               role: "user",
               content: [
                 {
-                  // Send photo as base64 encoded image
                   type: "image",
-                  source: {
-                    type: "base64",
-                    media_type: "image/jpeg",
-                    data: base64,
-                  },
+                  source: { type: "base64", media_type: "image/jpeg", data: base64 },
                 },
                 {
-                  // Structured beekeeping prompt for consistent output
                   type: "text",
                   text: `You are an expert beekeeper reviewing a photo of honeycomb. Analyze this comb photo and provide a clear, practical report covering:
 
@@ -106,7 +81,6 @@ Be concise and practical. If the image is unclear or not a comb photo, say so.`,
       });
 
       const data = await response.json();
-
       if (data.content && data.content[0]?.text) {
         setResult(data.content[0].text);
       } else if (data.error) {
@@ -124,7 +98,7 @@ Be concise and practical. If the image is unclear or not a comb photo, say so.`,
 
   return (
     <SafeAreaView style={styles.page}>
-      {/* Nav Bar — consistent across all screens */}
+      {/* Nav Bar */}
       <View style={styles.navBar}>
         <Pressable onPress={() => router.back()} style={styles.navButton}>
           <Text style={styles.navButtonText}>← Back</Text>
@@ -135,42 +109,40 @@ Be concise and practical. If the image is unclear or not a comb photo, say so.`,
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.title}>AI Comb Review</Text>
+        <Text style={styles.title}>🔬 AI Comb Review</Text>
         <Text style={styles.subtitle}>
-          Identifies eggs, larvae, brood, pollen, honey, and warning signs.
+          Identifies eggs, larvae, brood, pollen, honey, and warning signs
         </Text>
 
-        {/* Photo display or empty state */}
+        {/* Photo or empty state */}
         {photoUri ? (
           <Image source={{ uri: photoUri }} style={styles.photo} resizeMode="contain" />
         ) : (
           <View style={styles.emptyBox}>
-            <Text style={styles.emptyText}>No photo selected.</Text>
+            <Text style={styles.emptyEmoji}>📷</Text>
+            <Text style={styles.emptyText}>No photo selected</Text>
           </View>
         )}
 
-        {/* Analyze button — disabled if no photo or already analyzing */}
+        {/* Analyze button */}
         <Pressable
           onPress={analyzePhoto}
           disabled={!photoUri || analyzing}
-          style={[
-            styles.analyzeButton,
-            (!photoUri || analyzing) && styles.disabledButton,
-          ]}
+          style={[styles.analyzeButton, (!photoUri || analyzing) && styles.disabledButton]}
         >
           <Text style={styles.analyzeText}>
             {analyzing ? "Analyzing... 🐝" : "Analyze Comb"}
           </Text>
         </Pressable>
 
-        {/* Error state */}
+        {/* Error */}
         {error ? (
           <View style={styles.errorBox}>
             <Text style={styles.errorText}>{error}</Text>
           </View>
         ) : null}
 
-        {/* AI analysis result */}
+        {/* Result */}
         {result ? (
           <View style={styles.resultBox}>
             <Text style={styles.resultTitle}>🔍 Review Result</Text>
@@ -183,60 +155,73 @@ Be concise and practical. If the image is unclear or not a comb photo, say so.`,
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: "#020617" },
+  page: { flex: 1, backgroundColor: T.bg },
   navBar: {
     flexDirection: "row",
-    paddingHorizontal: 16,
+    paddingHorizontal: T.spaceMD,
     paddingVertical: 10,
     gap: 10,
     borderBottomWidth: 1,
-    borderBottomColor: "#1e293b",
+    borderBottomColor: T.border,
+    backgroundColor: T.bgNav,
   },
   navButton: {
-    backgroundColor: "#1e293b",
+    backgroundColor: T.bgCard,
     paddingVertical: 8,
     paddingHorizontal: 14,
-    borderRadius: 8,
+    borderRadius: T.radiusSM,
+    borderWidth: 1,
+    borderColor: T.border,
   },
-  navButtonText: { color: "#94a3b8", fontWeight: "700", fontSize: 14 },
-  content: { padding: 20, paddingBottom: 50 },
-  title: { color: "#fff", fontSize: 30, fontWeight: "900" },
-  subtitle: { color: "#94a3b8", marginTop: 6, marginBottom: 16 },
+  navButtonText: { color: T.textSecondary, fontWeight: "700", fontSize: T.fontSM },
+  content: { padding: T.spaceMD, paddingBottom: 50 },
+  title: { color: T.textPrimary, fontSize: T.fontLG, fontWeight: "900", marginBottom: 4 },
+  subtitle: { color: T.textMuted, fontSize: T.fontSM, marginBottom: T.spaceMD, lineHeight: 20 },
   photo: {
     width: "100%",
-    height: 360,
-    backgroundColor: "#0f172a",
-    borderRadius: 14,
+    height: 320,
+    backgroundColor: T.bgCard,
+    borderRadius: T.radiusLG,
+    borderWidth: 1,
+    borderColor: T.border,
   },
   emptyBox: {
-    height: 220,
-    backgroundColor: "#0f172a",
-    borderRadius: 14,
+    height: 200,
+    backgroundColor: T.bgCard,
+    borderRadius: T.radiusLG,
     justifyContent: "center",
     alignItems: "center",
+    borderWidth: 1,
+    borderColor: T.border,
   },
-  emptyText: { color: "#94a3b8" },
+  emptyEmoji: { fontSize: 40, marginBottom: 8 },
+  emptyText: { color: T.textMuted, fontSize: T.fontSM },
   analyzeButton: {
-    backgroundColor: "#22c55e",
+    backgroundColor: T.honey,
     padding: 16,
-    borderRadius: 12,
-    marginTop: 16,
+    borderRadius: T.radiusMD,
+    alignItems: "center",
+    marginTop: T.spaceMD,
   },
-  disabledButton: { backgroundColor: "#64748b" },
-  analyzeText: { color: "#0f172a", textAlign: "center", fontWeight: "900" },
+  disabledButton: { backgroundColor: T.textMuted },
+  analyzeText: { color: T.bg, fontWeight: "900", fontSize: T.fontMD },
   errorBox: {
-    backgroundColor: "#450a0a",
-    padding: 14,
-    borderRadius: 12,
-    marginTop: 14,
+    backgroundColor: T.dangerBg,
+    padding: T.spaceMD,
+    borderRadius: T.radiusMD,
+    marginTop: T.spaceMD,
+    borderWidth: 1,
+    borderColor: T.danger,
   },
   errorText: { color: "#fca5a5", lineHeight: 20 },
   resultBox: {
-    backgroundColor: "#1e293b",
-    padding: 16,
-    borderRadius: 14,
-    marginTop: 16,
+    backgroundColor: T.bgCard,
+    padding: T.spaceMD,
+    borderRadius: T.radiusLG,
+    marginTop: T.spaceMD,
+    borderWidth: 1,
+    borderColor: T.border,
   },
-  resultTitle: { color: "#fff", fontWeight: "900", marginBottom: 8, fontSize: 16 },
-  resultText: { color: "#cbd5e1", lineHeight: 22 },
+  resultTitle: { color: T.honey, fontWeight: "900", marginBottom: 10, fontSize: T.fontMD },
+  resultText: { color: T.textSecondary, lineHeight: 22, fontSize: T.fontSM },
 });

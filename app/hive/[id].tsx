@@ -2,18 +2,9 @@
  * app/hive/[id].tsx
  *
  * Hive Detail Screen — shows all inspections for a single hive.
- *
- * Route params:
- *  - id: the Firestore hive document ID (passed from the hive list screen)
- *
- * Features:
- *  - Loads all inspections for the hive from Firestore on mount
- *  - Displays inspections sorted newest first
- *  - Each inspection card is tappable → navigates to edit screen
- *  - Photos in each card are tappable → navigates to photo viewer
- *  - "+ Add Inspection" button routes to the add inspection screen
- *  - Back/Home nav buttons on every screen for consistent navigation
- *  - OfflineBanner shows when device has no internet
+ * Tapping an inspection card navigates to the edit screen.
+ * Tapping a photo navigates to the photo viewer.
+ * Auto-syncs queued uploads when network is restored.
  */
 
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -31,8 +22,10 @@ import {
 } from "react-native";
 import OfflineBanner from "../../components/OfflineBanner";
 import { db } from "../../utils/firebase";
+import { processSyncQueue } from "../../utils/syncQueue";
+import { T } from "../../utils/theme";
+import { useNetworkStatus } from "../../utils/useNetworkStatus";
 
-/** Shape of an inspection document from Firestore */
 type Inspection = {
   id: string;
   queen?: string;
@@ -51,34 +44,30 @@ export default function HiveDetailScreen() {
 
   const [inspections, setInspections] = useState<Inspection[]>([]);
   const [loading, setLoading] = useState(true);
+  const isOnline = useNetworkStatus();
 
-  // Load inspections whenever hiveId changes
+  useEffect(() => { loadInspections(); }, [hiveId]);
+
+  // Auto-sync queued uploads when network restores
   useEffect(() => {
-    loadInspections();
-  }, [hiveId]);
+    if (isOnline) {
+      processSyncQueue((msg) => console.log("SYNC:", msg));
+    }
+  }, [isOnline]);
 
-  /**
-   * Fetches all inspections for this hive from Firestore.
-   * Sorts them newest-first using the createdAt timestamp.
-   */
   const loadInspections = async () => {
     if (!hiveId) return;
     try {
-      const snap = await getDocs(
-        collection(db, "hives", hiveId, "inspections")
-      );
+      const snap = await getDocs(collection(db, "hives", hiveId, "inspections"));
       const list: Inspection[] = snap.docs.map((doc) => ({
         id: doc.id,
         ...(doc.data() as any),
       }));
-
-      // Sort descending by createdAt (newest first)
       list.sort((a, b) => {
         const t1 = a.createdAt?.toDate?.()?.getTime?.() || 0;
         const t2 = b.createdAt?.toDate?.()?.getTime?.() || 0;
         return t2 - t1;
       });
-
       setInspections(list);
     } catch (e) {
       console.log("LOAD ERROR", e);
@@ -90,18 +79,17 @@ export default function HiveDetailScreen() {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator />
-        <Text style={styles.meta}>Loading...</Text>
+        <ActivityIndicator color={T.honey} size="large" />
+        <Text style={styles.loadingText}>Loading inspections...</Text>
       </View>
     );
   }
 
   return (
     <SafeAreaView style={styles.page}>
-      {/* Shows amber banner when device is offline */}
       <OfflineBanner />
 
-      {/* Nav Bar — consistent across all screens */}
+      {/* Nav Bar */}
       <View style={styles.navBar}>
         <Pressable onPress={() => router.back()} style={styles.navButton}>
           <Text style={styles.navButtonText}>← Back</Text>
@@ -112,31 +100,30 @@ export default function HiveDetailScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        {/* Title row with Add Inspection button */}
+
+        {/* Title row */}
         <View style={styles.titleRow}>
-          <Text style={styles.title}>Hive Detail</Text>
+          <Text style={styles.title}>Inspections</Text>
           <Pressable
             style={styles.addButton}
             onPress={() =>
-              router.push({
-                pathname: "/hive/inspection/add",
-                params: { id: hiveId },
-              })
+              router.push({ pathname: "/hive/inspection/add", params: { id: hiveId } })
             }
           >
-            <Text style={styles.addButtonText}>+ Add Inspection</Text>
+            <Text style={styles.addButtonText}>+ Add</Text>
           </Pressable>
         </View>
 
-        {/* Empty state when no inspections exist yet */}
         {inspections.length === 0 && (
-          <Text style={styles.empty}>No inspections yet. Add one above!</Text>
+          <View style={styles.emptyBox}>
+            <Text style={styles.emptyEmoji}>🔍</Text>
+            <Text style={styles.emptyText}>No inspections yet</Text>
+            <Text style={styles.emptyHint}>Tap "+ Add" to log your first inspection</Text>
+          </View>
         )}
 
-        {/* Inspection cards — tap to edit */}
         {inspections.map((inspection) => {
           const photos = inspection.photoUrls || [];
-
           return (
             <Pressable
               key={inspection.id}
@@ -148,53 +135,53 @@ export default function HiveDetailScreen() {
                 })
               }
             >
-              {/* Date header */}
-              <Text style={styles.date}>
+              {/* Date */}
+              <Text style={styles.cardDate}>
                 {inspection.createdAt?.toDate
                   ? inspection.createdAt.toDate().toLocaleString()
                   : "No date"}
               </Text>
 
-              {/* Queen and brood summary */}
-              <Text style={styles.meta}>
-                Queen: {inspection.queen || "-"} | Brood:{" "}
-                {inspection.brood || "-"}
-              </Text>
+              {/* Queen / Brood badges */}
+              <View style={styles.badgeRow}>
+                {inspection.queen ? (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>👑 {inspection.queen}</Text>
+                  </View>
+                ) : null}
+                {inspection.brood ? (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>🐛 {inspection.brood}</Text>
+                  </View>
+                ) : null}
+              </View>
 
-              {/* Horizontal photo strip — tap a photo to open full viewer */}
-              {photos.length > 0 && (
-                <View style={styles.photosBox}>
-                  <Text style={styles.photosTitle}>Photos</Text>
-                  <ScrollView horizontal>
-                    <View style={styles.photoRow}>
-                      {photos.map((uri) => (
-                        <Pressable
-                          key={uri}
-                          style={styles.photoButton}
-                          onPress={() =>
-                            router.push({
-                              pathname: "/hive/photo-viewer",
-                              params: {
-                                uri,
-                                hiveId,
-                                inspectionId: inspection.id,
-                              },
-                            })
-                          }
-                        >
-                          <Image source={{ uri }} style={styles.photo} />
-                        </Pressable>
-                      ))}
-                    </View>
-                  </ScrollView>
-                </View>
-              )}
-
+              {/* Notes */}
               {inspection.notes ? (
-                <Text style={styles.notes}>{inspection.notes}</Text>
+                <Text style={styles.notes} numberOfLines={2}>
+                  {inspection.notes}
+                </Text>
               ) : null}
 
-              {/* Subtle hint that the card is tappable */}
+              {/* Photo strip */}
+              {photos.length > 0 && (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photoStrip}>
+                  {photos.map((uri) => (
+                    <Pressable
+                      key={uri}
+                      onPress={() =>
+                        router.push({
+                          pathname: "/hive/photo-viewer",
+                          params: { uri, hiveId, inspectionId: inspection.id },
+                        })
+                      }
+                    >
+                      <Image source={{ uri }} style={styles.photo} />
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              )}
+
               <Text style={styles.editHint}>Tap to edit →</Text>
             </Pressable>
           );
@@ -205,57 +192,67 @@ export default function HiveDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: "#0f172a" },
+  page: { flex: 1, backgroundColor: T.bg },
+  center: { flex: 1, backgroundColor: T.bg, justifyContent: "center", alignItems: "center" },
+  loadingText: { color: T.textSecondary, marginTop: 12 },
   navBar: {
     flexDirection: "row",
-    paddingHorizontal: 16,
+    paddingHorizontal: T.spaceMD,
     paddingVertical: 10,
     gap: 10,
     borderBottomWidth: 1,
-    borderBottomColor: "#1e293b",
+    borderBottomColor: T.border,
+    backgroundColor: T.bgNav,
   },
   navButton: {
-    backgroundColor: "#1e293b",
+    backgroundColor: T.bgCard,
     paddingVertical: 8,
     paddingHorizontal: 14,
-    borderRadius: 8,
+    borderRadius: T.radiusSM,
+    borderWidth: 1,
+    borderColor: T.border,
   },
-  navButtonText: { color: "#94a3b8", fontWeight: "700", fontSize: 14 },
-  content: { padding: 20 },
-  center: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#0f172a",
-  },
+  navButtonText: { color: T.textSecondary, fontWeight: "700", fontSize: T.fontSM },
+  content: { padding: T.spaceMD, paddingBottom: 50 },
   titleRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 8,
+    marginBottom: T.spaceMD,
   },
-  title: { color: "#fff", fontSize: 26, fontWeight: "800" },
+  title: { color: T.textPrimary, fontSize: T.fontLG, fontWeight: "900" },
   addButton: {
-    backgroundColor: "#22c55e",
+    backgroundColor: T.green,
     paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 8,
+    paddingHorizontal: 16,
+    borderRadius: T.radiusSM,
   },
-  addButtonText: { color: "#0f172a", fontWeight: "800", fontSize: 14 },
-  empty: { color: "#64748b", marginTop: 20, textAlign: "center" },
-  meta: { color: "#cbd5e1", marginTop: 4 },
+  addButtonText: { color: "#fff", fontWeight: "900", fontSize: T.fontSM },
+  emptyBox: { alignItems: "center", marginTop: 40 },
+  emptyEmoji: { fontSize: 48, marginBottom: 12 },
+  emptyText: { color: T.textPrimary, fontSize: T.fontMD, fontWeight: "800" },
+  emptyHint: { color: T.textMuted, fontSize: T.fontSM, marginTop: 6, textAlign: "center" },
   card: {
-    backgroundColor: "#1e293b",
-    padding: 14,
-    borderRadius: 12,
-    marginTop: 12,
+    backgroundColor: T.bgCard,
+    padding: T.spaceMD,
+    borderRadius: T.radiusLG,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: T.border,
   },
-  date: { color: "#93c5fd", fontWeight: "700", marginBottom: 6 },
-  notes: { color: "#fff", marginTop: 6 },
-  editHint: { color: "#475569", fontSize: 11, marginTop: 8, textAlign: "right" },
-  photosBox: { marginTop: 10 },
-  photosTitle: { color: "#9ca3af", fontSize: 12, marginBottom: 6 },
-  photoRow: { flexDirection: "row" },
-  photoButton: { marginRight: 8 },
-  photo: { width: 110, height: 110, borderRadius: 12 },
+  cardDate: { color: T.honey, fontWeight: "700", fontSize: T.fontSM, marginBottom: 8 },
+  badgeRow: { flexDirection: "row", gap: 8, marginBottom: 8, flexWrap: "wrap" },
+  badge: {
+    backgroundColor: T.bgCardAlt,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: T.border,
+  },
+  badgeText: { color: T.textSecondary, fontSize: T.fontXS, fontWeight: "700" },
+  notes: { color: T.textSecondary, fontSize: T.fontSM, marginBottom: 8, lineHeight: 20 },
+  photoStrip: { marginTop: 8, marginBottom: 8 },
+  photo: { width: 90, height: 90, borderRadius: T.radiusSM, marginRight: 8 },
+  editHint: { color: T.textMuted, fontSize: T.fontXS, textAlign: "right", marginTop: 4 },
 });
