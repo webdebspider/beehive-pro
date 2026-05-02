@@ -2,13 +2,28 @@
  * app/hive/inspection/edit.tsx
  *
  * Edit Inspection Screen — loads and edits an existing inspection.
+ * Param "inspectionId" must match exactly what [id].tsx sends.
+ *
+ * Fields: queen, brood, notes, photos
+ * Now matches the add inspection screen for consistency.
  */
 
 import * as ImagePicker from "expo-image-picker";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { deleteDoc, doc, getDoc, updateDoc } from "firebase/firestore";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, Image, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  Pressable,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import NavBar from "../../../components/NavBar";
 import { useAppTheme } from "../../../hooks/useAppTheme";
 import { db } from "../../../utils/firebase";
@@ -16,9 +31,16 @@ import { db } from "../../../utils/firebase";
 export default function EditInspectionScreen() {
   const router = useRouter();
   const theme = useAppTheme();
-  const { inspectionId, hiveId } = useLocalSearchParams<{ inspectionId?: string; hiveId?: string }>();
+  const { inspectionId, hiveId } = useLocalSearchParams<{
+    inspectionId?: string;
+    hiveId?: string;
+  }>();
+
   const resolvedInspectionId = inspectionId ? String(inspectionId) : "";
   const resolvedHiveId = hiveId ? String(hiveId) : "";
+
+  const [queen, setQueen] = useState("");
+  const [brood, setBrood] = useState("");
   const [notes, setNotes] = useState("");
   const [photoUris, setPhotoUris] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -26,12 +48,23 @@ export default function EditInspectionScreen() {
 
   useEffect(() => { loadInspection(); }, []);
 
+  /** Loads existing inspection data from Firestore */
   const loadInspection = async () => {
     try {
       const ref = doc(db, "hives", resolvedHiveId, "inspections", resolvedInspectionId);
       const snap = await getDoc(ref);
-      if (snap.exists()) { const data = snap.data(); setNotes(data.notes || ""); setPhotoUris(data.photoUris || []); }
-    } catch (e) { console.log("❌ LOAD ERROR:", e); } finally { setLoading(false); }
+      if (snap.exists()) {
+        const data = snap.data();
+        setQueen(data.queen || "");
+        setBrood(data.brood || "");
+        setNotes(data.notes || "");
+        setPhotoUris(data.photoUris || []);
+      }
+    } catch (e) {
+      console.log("❌ LOAD ERROR:", e);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const pickPhoto = async () => {
@@ -40,30 +73,51 @@ export default function EditInspectionScreen() {
     const result = await ImagePicker.launchImageLibraryAsync({ allowsMultipleSelection: true, quality: 0.8 });
     if (!result.canceled) setPhotoUris((prev) => [...prev, ...result.assets.map((a) => a.uri)]);
   };
+
   const takePhoto = async () => {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
     if (!permission.granted) { Alert.alert("Permission needed"); return; }
     const result = await ImagePicker.launchCameraAsync({ quality: 0.8 });
     if (!result.canceled) setPhotoUris((prev) => [...prev, result.assets[0].uri]);
   };
-  const removePhoto = (uri: string) => setPhotoUris((prev) => prev.filter((p) => p !== uri));
 
+  const removePhoto = (uri: string) =>
+    setPhotoUris((prev) => prev.filter((p) => p !== uri));
+
+  /** Saves updated inspection fields back to Firestore */
   const handleSave = async () => {
     if (saving) return;
     try {
       setSaving(true);
-      await updateDoc(doc(db, "hives", resolvedHiveId, "inspections", resolvedInspectionId), { notes, photoUris, updatedAt: new Date() });
+      await updateDoc(
+        doc(db, "hives", resolvedHiveId, "inspections", resolvedInspectionId),
+        { queen, brood, notes, photoUris, updatedAt: new Date() }
+      );
       router.replace({ pathname: "/hive/[id]", params: { id: resolvedHiveId } });
-    } catch (e) { Alert.alert("Error saving"); } finally { setSaving(false); }
+    } catch (e) {
+      Alert.alert("Error saving");
+    } finally {
+      setSaving(false);
+    }
   };
 
+  /**
+   * Permanently deletes this inspection.
+   * Shows confirmation alert before proceeding.
+   */
   const handleDelete = async () => {
     Alert.alert("Delete Inspection?", "This cannot be undone.", [
       { text: "Cancel", style: "cancel" },
-      { text: "Delete", style: "destructive", onPress: async () => {
-        await deleteDoc(doc(db, "hives", resolvedHiveId, "inspections", resolvedInspectionId));
-        router.replace({ pathname: "/hive/[id]", params: { id: resolvedHiveId } });
-      }},
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          await deleteDoc(
+            doc(db, "hives", resolvedHiveId, "inspections", resolvedInspectionId)
+          );
+          router.replace({ pathname: "/hive/[id]", params: { id: resolvedHiveId } });
+        },
+      },
     ]);
   };
 
@@ -82,12 +136,50 @@ export default function EditInspectionScreen() {
       <NavBar />
       <ScrollView contentContainerStyle={S.content}>
         <Text style={S.title}>Edit Inspection</Text>
-        <Text style={S.subtitle}>Update your notes or photos</Text>
+        <Text style={S.subtitle}>Update your inspection details</Text>
+
+        {/* Queen */}
+        <Text style={S.label}>👑 Queen Status</Text>
+        <TextInput
+          value={queen}
+          onChangeText={setQueen}
+          placeholder="e.g. seen, eggs present, not found"
+          placeholderTextColor={theme.textMuted}
+          style={S.input}
+        />
+
+        {/* Brood */}
+        <Text style={S.label}>🐛 Brood Pattern</Text>
+        <TextInput
+          value={brood}
+          onChangeText={setBrood}
+          placeholder="e.g. strong, weak, spotty"
+          placeholderTextColor={theme.textMuted}
+          style={S.input}
+        />
+
+        {/* Notes */}
+        <Text style={S.label}>📝 Notes</Text>
+        <TextInput
+          value={notes}
+          onChangeText={setNotes}
+          multiline
+          placeholder="Inspection notes..."
+          placeholderTextColor={theme.textMuted}
+          style={[S.input, S.notesInput]}
+        />
+
+        {/* Photos */}
         <Text style={S.label}>📷 Photos</Text>
         <View style={S.photoButtons}>
-          <Pressable style={S.photoButton} onPress={takePhoto}><Text style={S.photoButtonText}>📷 Camera</Text></Pressable>
-          <Pressable style={S.photoButton} onPress={pickPhoto}><Text style={S.photoButtonText}>🖼️ Gallery</Text></Pressable>
+          <Pressable style={S.photoButton} onPress={takePhoto}>
+            <Text style={S.photoButtonText}>📷 Camera</Text>
+          </Pressable>
+          <Pressable style={S.photoButton} onPress={pickPhoto}>
+            <Text style={S.photoButtonText}>🖼️ Gallery</Text>
+          </Pressable>
         </View>
+
         {photoUris.length > 0 && (
           <View style={S.photoGrid}>
             {photoUris.map((uri) => (
@@ -98,11 +190,16 @@ export default function EditInspectionScreen() {
             ))}
           </View>
         )}
-        <Text style={S.label}>📝 Notes</Text>
-        <TextInput value={notes} onChangeText={setNotes} multiline placeholder="Inspection notes..." placeholderTextColor={theme.textMuted} style={[S.input, S.notesInput]} />
-        <Pressable style={[S.saveButton, saving && S.disabledButton]} onPress={handleSave}>
+
+        {/* Save */}
+        <Pressable
+          style={[S.saveButton, saving && S.disabledButton]}
+          onPress={handleSave}
+        >
           <Text style={S.saveText}>{saving ? "Saving..." : "Save Changes"}</Text>
         </Pressable>
+
+        {/* Delete */}
         <Pressable style={S.deleteButton} onPress={handleDelete}>
           <Text style={S.deleteText}>🗑 Delete Inspection</Text>
         </Pressable>
@@ -118,18 +215,48 @@ function makeStyles(theme: ReturnType<typeof useAppTheme>) {
     title: { color: theme.textPrimary, fontSize: theme.fontLG, fontWeight: "900", marginBottom: 4 },
     subtitle: { color: theme.textMuted, fontSize: theme.fontSM, marginBottom: theme.spaceMD },
     label: { color: theme.textSecondary, fontSize: theme.fontSM, fontWeight: "700", marginTop: theme.spaceMD, marginBottom: 8 },
+    input: {
+      backgroundColor: theme.bgInput,
+      color: theme.textPrimary,
+      padding: 14,
+      borderRadius: theme.radiusMD,
+      fontSize: theme.fontMD,
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+    notesInput: { minHeight: 120, textAlignVertical: "top" },
     photoButtons: { flexDirection: "row", gap: 10 },
-    photoButton: { flex: 1, backgroundColor: theme.bgCardAlt, padding: 14, borderRadius: theme.radiusMD, alignItems: "center", borderWidth: 1, borderColor: theme.border },
+    photoButton: {
+      flex: 1,
+      backgroundColor: theme.bgCardAlt,
+      padding: 14,
+      borderRadius: theme.radiusMD,
+      alignItems: "center",
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
     photoButtonText: { color: theme.textPrimary, fontWeight: "800", fontSize: theme.fontSM },
     photoGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: theme.spaceMD },
     photo: { width: 100, height: 100, borderRadius: theme.radiusSM },
     removeText: { color: theme.danger, fontSize: theme.fontXS, marginTop: 4, textAlign: "center" },
-    input: { backgroundColor: theme.bgInput, color: theme.textPrimary, padding: 14, borderRadius: theme.radiusMD, fontSize: theme.fontMD, borderWidth: 1, borderColor: theme.border },
-    notesInput: { minHeight: 120, textAlignVertical: "top" },
-    saveButton: { backgroundColor: theme.green, padding: 16, borderRadius: theme.radiusMD, alignItems: "center", marginTop: theme.spaceLG },
+    saveButton: {
+      backgroundColor: theme.green,
+      padding: 16,
+      borderRadius: theme.radiusMD,
+      alignItems: "center",
+      marginTop: theme.spaceLG,
+    },
     disabledButton: { backgroundColor: theme.textMuted },
     saveText: { color: "#fff", fontWeight: "900", fontSize: theme.fontMD },
-    deleteButton: { backgroundColor: theme.dangerBg, padding: 16, borderRadius: theme.radiusMD, alignItems: "center", marginTop: 10, borderWidth: 1, borderColor: theme.danger },
+    deleteButton: {
+      backgroundColor: theme.dangerBg,
+      padding: 16,
+      borderRadius: theme.radiusMD,
+      alignItems: "center",
+      marginTop: 10,
+      borderWidth: 1,
+      borderColor: theme.danger,
+    },
     deleteText: { color: "#fca5a5", fontWeight: "900", fontSize: theme.fontMD },
   });
 }
