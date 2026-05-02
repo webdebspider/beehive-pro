@@ -1,13 +1,26 @@
-import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+/**
+ * app/index.tsx
+ *
+ * Root index — entry point of the app.
+ * Redirects to the hive dashboard.
+ *
+ * Note: This file uses AsyncStorage-based hive/alert data (utils/storage.ts).
+ * The main hive dashboard is at app/hive/index.tsx which uses Firebase.
+ * TODO: Consolidate to Firebase-only when auth is wired up.
+ */
+
+import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useState } from "react";
 import {
   FlatList,
+  Pressable,
   SafeAreaView,
+  StyleSheet,
   Text,
-  TouchableOpacity,
   View,
-} from 'react-native';
-import { getAlerts, getHives } from '../utils/storage';
+} from "react-native";
+import { getAlerts, getHives } from "../utils/storage";
+import { T } from "../utils/theme";
 
 export default function Dashboard() {
   const router = useRouter();
@@ -22,102 +35,136 @@ export default function Dashboard() {
   );
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#0f172a' }}>
-      <View style={{ padding: 20 }}>
+    <SafeAreaView style={styles.page}>
+      <View style={styles.content}>
 
-        {/* HEADER */}
-        <Text style={styles.title}>🐝 Hive Dashboard</Text>
-        <Text style={styles.subtitle}>
-          {hives.length} hives • {alerts.length} alerts
-        </Text>
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.headerEmoji}>🐝</Text>
+          <View>
+            <Text style={styles.title}>Beehive Pro</Text>
+            <Text style={styles.subtitle}>
+              {hives.length} hive{hives.length === 1 ? "" : "s"} · {alerts.length} alert{alerts.length === 1 ? "" : "s"}
+            </Text>
+          </View>
+        </View>
 
-        {/* ALERT BANNER */}
+        {/* Alert banner */}
         {alerts.length > 0 && (
           <View style={styles.alertBanner}>
+            <Text style={styles.alertIcon}>⚠️</Text>
             <Text style={styles.alertText}>
-              🚨 {alerts.length} active alerts
+              {alerts.length} active alert{alerts.length === 1 ? "" : "s"}
             </Text>
           </View>
         )}
 
-        {/* HIVE LIST */}
+        {/* Section label */}
+        <Text style={styles.sectionLabel}>YOUR HIVES</Text>
+
+        {/* Hive list */}
         <FlatList
           data={hives}
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ paddingBottom: 100 }}
+          ListEmptyComponent={
+            <View style={styles.emptyBox}>
+              <Text style={styles.emptyEmoji}>🪣</Text>
+              <Text style={styles.emptyText}>No hives yet</Text>
+              <Text style={styles.emptyHint}>Tap + to add your first hive</Text>
+            </View>
+          }
           renderItem={({ item }) => (
-            <TouchableOpacity
-              onPress={() =>
-                router.push({
-                  pathname: '/hive/[id]',
-                  params: { id: item.id },
-                })
-              }
+            <Pressable
+              onPress={() => router.push({ pathname: "/hive/[id]", params: { id: item.id } })}
               style={styles.hiveCard}
             >
+              <View style={styles.hiveIconBox}>
+                <Text style={styles.hiveIcon}>🏠</Text>
+              </View>
               <Text style={styles.hiveName}>{item.name}</Text>
-            </TouchableOpacity>
+              <Text style={styles.hiveArrow}>→</Text>
+            </Pressable>
           )}
         />
-
       </View>
 
-      {/* FAB */}
-      <TouchableOpacity
-        onPress={() => router.push('/hive/add')}
+      {/* FAB — Add Hive */}
+      <Pressable
+        onPress={() => router.push("/hive/add")}
         style={styles.fab}
       >
         <Text style={styles.fabText}>＋</Text>
-      </TouchableOpacity>
-
+      </Pressable>
     </SafeAreaView>
   );
 }
 
-const styles = {
-  title: {
-    fontSize: 28,
-    fontWeight: '700' as const,
-    color: '#fff',
-  },
-  subtitle: {
-    color: '#9ca3af',
-    marginBottom: 20,
-  },
+const styles = StyleSheet.create({
+  page: { flex: 1, backgroundColor: T.bg },
+  content: { flex: 1, padding: T.spaceMD },
+  header: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: T.spaceLG },
+  headerEmoji: { fontSize: 40 },
+  title: { color: T.textPrimary, fontSize: T.fontLG, fontWeight: "900" },
+  subtitle: { color: T.textMuted, fontSize: T.fontSM, marginTop: 2 },
   alertBanner: {
-    backgroundColor: '#7f1d1d',
-    padding: 12,
-    borderRadius: 10,
-    marginBottom: 15,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: T.warningBg,
+    borderWidth: 1,
+    borderColor: T.warning,
+    padding: T.spaceMD,
+    borderRadius: T.radiusMD,
+    marginBottom: T.spaceMD,
   },
-  alertText: {
-    color: '#fecaca',
-    fontWeight: '600' as const,
+  alertIcon: { fontSize: 20 },
+  alertText: { color: T.honeyLight, fontWeight: "800", fontSize: T.fontSM },
+  sectionLabel: {
+    color: T.textMuted,
+    fontSize: T.fontXS,
+    fontWeight: "800",
+    letterSpacing: 1.5,
+    marginBottom: T.spaceSM,
   },
   hiveCard: {
-    backgroundColor: '#1e293b',
-    padding: 16,
-    borderRadius: 14,
-    marginBottom: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: T.bgCard,
+    padding: T.spaceMD,
+    borderRadius: T.radiusMD,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: T.border,
+    gap: 12,
   },
-  hiveName: {
-    color: '#fff',
-    fontSize: 16,
+  hiveIconBox: {
+    width: 40,
+    height: 40,
+    backgroundColor: T.bgCardAlt,
+    borderRadius: T.radiusSM,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: T.border,
   },
+  hiveIcon: { fontSize: 20 },
+  hiveName: { flex: 1, color: T.textPrimary, fontSize: T.fontMD, fontWeight: "800" },
+  hiveArrow: { color: T.honey, fontSize: 18, fontWeight: "900" },
+  emptyBox: { alignItems: "center", marginTop: 60 },
+  emptyEmoji: { fontSize: 48, marginBottom: 12 },
+  emptyText: { color: T.textPrimary, fontSize: T.fontMD, fontWeight: "800" },
+  emptyHint: { color: T.textMuted, fontSize: T.fontSM, marginTop: 6 },
   fab: {
-    position: 'absolute' as const,
+    position: "absolute",
     bottom: 30,
     right: 20,
-    backgroundColor: '#22c55e',
+    backgroundColor: T.honey,
     width: 60,
     height: 60,
     borderRadius: 30,
-    justifyContent: 'center' as const,
-    alignItems: 'center' as const,
+    justifyContent: "center",
+    alignItems: "center",
   },
-  fabText: {
-    fontSize: 30,
-    color: '#000',
-    fontWeight: '700' as const,
-  },
-};
+  fabText: { fontSize: 30, color: T.bg, fontWeight: "900" },
+});

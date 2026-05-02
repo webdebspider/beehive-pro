@@ -1,3 +1,12 @@
+/**
+ * app/hive/add.tsx
+ *
+ * Add Hive Screen — creates a new hive document in Firestore.
+ * Navigates to the new hive's detail screen after saving.
+ *
+ * Fields: name (required), location, notes
+ */
+
 import { useRouter } from "expo-router";
 import { addDoc, collection } from "firebase/firestore";
 import { useState } from "react";
@@ -5,15 +14,17 @@ import {
   Alert,
   Pressable,
   SafeAreaView,
+  ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
 import { db } from "../../utils/firebase";
+import { T } from "../../utils/theme";
 
 export default function AddHiveScreen() {
   const router = useRouter();
-
   const [name, setName] = useState("");
   const [location, setLocation] = useState("");
   const [notes, setNotes] = useState("");
@@ -21,29 +32,19 @@ export default function AddHiveScreen() {
 
   const handleSave = async () => {
     if (saving) return;
-
     if (!name.trim()) {
       Alert.alert("Missing name", "Please enter a hive name.");
       return;
     }
-
     try {
       setSaving(true);
-      console.log("🔥 SAVING HIVE");
-
       const docRef = await addDoc(collection(db, "hives"), {
         name: name.trim(),
         location: location.trim(),
         notes: notes.trim(),
         createdAt: new Date().toISOString(),
       });
-
-      console.log("✅ HIVE SAVED:", docRef.id);
-
-      router.replace({
-        pathname: "/hive/[id]",
-        params: { id: docRef.id },
-      });
+      router.replace({ pathname: "/hive/[id]", params: { id: docRef.id } });
     } catch (e) {
       console.log("❌ SAVE HIVE ERROR:", e);
       Alert.alert("Error", "Could not save hive.");
@@ -53,79 +54,104 @@ export default function AddHiveScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#0f172a" }}>
-      <View style={{ padding: 20 }}>
-        <Text style={{ color: "#fff", fontSize: 28, fontWeight: "700" }}>
-          Add Hive
-        </Text>
+    <SafeAreaView style={styles.page}>
+      {/* Nav Bar */}
+      <View style={styles.navBar}>
+        <Pressable onPress={() => router.back()} style={styles.navButton}>
+          <Text style={styles.navButtonText}>← Back</Text>
+        </Pressable>
+        <Pressable onPress={() => router.push("/hive")} style={styles.navButton}>
+          <Text style={styles.navButtonText}>🏠 Home</Text>
+        </Pressable>
+      </View>
 
-        <Text style={{ color: "#9ca3af", marginTop: 18 }}>Hive Name</Text>
+      <ScrollView contentContainerStyle={styles.content}>
+        <Text style={styles.title}>New Hive</Text>
+        <Text style={styles.subtitle}>Add a hive to your apiary</Text>
+
+        <Text style={styles.label}>🏠 Hive Name</Text>
         <TextInput
           value={name}
           onChangeText={setName}
-          placeholder="Example: North Yard Hive"
-          placeholderTextColor="#64748b"
+          placeholder="e.g. North Yard Hive"
+          placeholderTextColor={T.textMuted}
           style={styles.input}
         />
 
-        <Text style={{ color: "#9ca3af", marginTop: 15 }}>Location</Text>
+        <Text style={styles.label}>📍 Location</Text>
         <TextInput
           value={location}
           onChangeText={setLocation}
-          placeholder="Example: Back field"
-          placeholderTextColor="#64748b"
+          placeholder="e.g. Back field, near the oak tree"
+          placeholderTextColor={T.textMuted}
           style={styles.input}
         />
 
-        <Text style={{ color: "#9ca3af", marginTop: 15 }}>Notes</Text>
+        <Text style={styles.label}>📝 Notes</Text>
         <TextInput
           value={notes}
           onChangeText={setNotes}
-          placeholder="Optional notes"
-          placeholderTextColor="#64748b"
-          style={[styles.input, { height: 100 }]}
+          placeholder="Optional notes about this hive"
+          placeholderTextColor={T.textMuted}
+          style={[styles.input, styles.notesInput]}
           multiline
         />
 
         <Pressable
           onPress={handleSave}
-          style={[
-            styles.button,
-            { backgroundColor: saving ? "#64748b" : "#22c55e" },
-          ]}
+          style={[styles.saveButton, saving && styles.disabledButton]}
+          disabled={saving}
         >
-          <Text style={{ textAlign: "center", fontWeight: "700" }}>
+          <Text style={styles.saveText}>
             {saving ? "Saving..." : "Save Hive"}
           </Text>
         </Pressable>
-
-        <Pressable onPress={() => router.push("/hive")} style={styles.back}>
-          <Text style={{ color: "#fff", textAlign: "center", fontWeight: "700" }}>
-            Back to Hive List
-          </Text>
-        </Pressable>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
-const styles = {
+const styles = StyleSheet.create({
+  page: { flex: 1, backgroundColor: T.bg },
+  navBar: {
+    flexDirection: "row",
+    paddingHorizontal: T.spaceMD,
+    paddingVertical: 10,
+    gap: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: T.border,
+    backgroundColor: T.bgNav,
+  },
+  navButton: {
+    backgroundColor: T.bgCard,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: T.radiusSM,
+    borderWidth: 1,
+    borderColor: T.border,
+  },
+  navButtonText: { color: T.textSecondary, fontWeight: "700", fontSize: T.fontSM },
+  content: { padding: T.spaceMD, paddingBottom: 50 },
+  title: { color: T.textPrimary, fontSize: T.fontLG, fontWeight: "900", marginBottom: 4 },
+  subtitle: { color: T.textMuted, fontSize: T.fontSM, marginBottom: T.spaceLG },
+  label: { color: T.textSecondary, fontSize: T.fontSM, fontWeight: "700", marginTop: T.spaceMD, marginBottom: 8 },
   input: {
-    backgroundColor: "#1e293b",
-    color: "#fff",
-    padding: 12,
-    borderRadius: 10,
-    marginTop: 6,
-  },
-  button: {
+    backgroundColor: T.bgInput,
+    color: T.textPrimary,
     padding: 14,
-    borderRadius: 10,
-    marginTop: 20,
+    borderRadius: T.radiusMD,
+    fontSize: T.fontMD,
+    borderWidth: 1,
+    borderColor: T.border,
   },
-  back: {
-    backgroundColor: "#475569",
-    padding: 14,
-    borderRadius: 10,
-    marginTop: 12,
+  notesInput: { minHeight: 110, textAlignVertical: "top" },
+  saveButton: {
+    backgroundColor: T.green,
+    padding: 16,
+    borderRadius: T.radiusMD,
+    alignItems: "center",
+    marginTop: T.spaceLG,
   },
-};
+  disabledButton: { backgroundColor: T.textMuted },
+  saveText: { color: "#fff", fontWeight: "900", fontSize: T.fontMD },
+});

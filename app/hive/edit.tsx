@@ -1,12 +1,16 @@
+/**
+ * app/hive/edit.tsx
+ *
+ * Edit Hive Screen — loads and updates an existing hive document.
+ * Delete removes the hive AND all its inspections from Firestore.
+ * Uses window.confirm on web, Alert on native for delete confirmation.
+ *
+ * Route params:
+ *  - id: Firestore hive document ID
+ */
+
 import { useLocalSearchParams, useRouter } from "expo-router";
-import {
-  collection,
-  deleteDoc,
-  doc,
-  getDoc,
-  getDocs,
-  updateDoc,
-} from "firebase/firestore";
+import { collection, deleteDoc, doc, getDoc, getDocs, updateDoc } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -14,17 +18,18 @@ import {
   Platform,
   Pressable,
   SafeAreaView,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
 import { db } from "../../utils/firebase";
+import { T } from "../../utils/theme";
 
 export default function EditHiveScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id?: string }>();
-
   const hiveId = id ? String(id) : "";
 
   const [name, setName] = useState("");
@@ -36,14 +41,9 @@ export default function EditHiveScreen() {
 
   useEffect(() => {
     const loadHive = async () => {
-      if (!hiveId) {
-        setLoading(false);
-        return;
-      }
-
+      if (!hiveId) { setLoading(false); return; }
       try {
         const snap = await getDoc(doc(db, "hives", hiveId));
-
         if (snap.exists()) {
           const data = snap.data();
           setName(String(data.name || ""));
@@ -59,37 +59,21 @@ export default function EditHiveScreen() {
         setLoading(false);
       }
     };
-
     loadHive();
   }, [hiveId]);
 
   const handleSave = async () => {
     if (saving || deleting) return;
-
-    if (!hiveId) {
-      Alert.alert("Missing Hive", "No hive ID was provided.");
-      return;
-    }
-
-    if (!name.trim()) {
-      Alert.alert("Name required", "Please enter a hive name.");
-      return;
-    }
-
+    if (!name.trim()) { Alert.alert("Name required", "Please enter a hive name."); return; }
     try {
       setSaving(true);
-
       await updateDoc(doc(db, "hives", hiveId), {
         name: name.trim(),
         location: location.trim(),
         notes: notes.trim(),
         updatedAt: new Date(),
       });
-
-      router.replace({
-        pathname: "/hive/[id]",
-        params: { id: hiveId },
-      });
+      router.replace({ pathname: "/hive/[id]", params: { id: hiveId } });
     } catch (e) {
       console.log("❌ SAVE HIVE ERROR:", e);
       Alert.alert("Error", "Could not save hive.");
@@ -98,29 +82,14 @@ export default function EditHiveScreen() {
     }
   };
 
+  /** Deletes hive + all its inspections from Firestore */
   const doDelete = async () => {
     if (saving || deleting) return;
-
-    if (!hiveId) {
-      Alert.alert("Missing Hive", "No hive ID was provided.");
-      return;
-    }
-
     try {
       setDeleting(true);
-
-      const inspectionsSnap = await getDocs(
-        collection(db, "hives", hiveId, "inspections")
-      );
-
-      await Promise.all(
-        inspectionsSnap.docs.map((inspectionDoc) =>
-          deleteDoc(doc(db, "hives", hiveId, "inspections", inspectionDoc.id))
-        )
-      );
-
+      const inspSnap = await getDocs(collection(db, "hives", hiveId, "inspections"));
+      await Promise.all(inspSnap.docs.map((d) => deleteDoc(doc(db, "hives", hiveId, "inspections", d.id))));
       await deleteDoc(doc(db, "hives", hiveId));
-
       router.replace("/hive");
     } catch (e) {
       console.log("❌ DELETE HIVE ERROR:", e);
@@ -131,67 +100,67 @@ export default function EditHiveScreen() {
   };
 
   const handleDelete = () => {
-    console.log("🔥 DELETE HIVE PRESSED");
-
     if (Platform.OS === "web") {
-      const confirmed = window.confirm(
-        "Delete this hive and all its inspections? This cannot be undone."
-      );
-
+      const confirmed = window.confirm("Delete this hive and all its inspections? This cannot be undone.");
       if (confirmed) doDelete();
       return;
     }
-
-    Alert.alert(
-      "Delete hive?",
-      "This will delete the hive and all inspections. This cannot be undone.",
-      [
-        { text: "Cancel", style: "cancel" },
-        { text: "Delete", style: "destructive", onPress: doDelete },
-      ]
-    );
+    Alert.alert("Delete hive?", "This will delete the hive and all inspections. This cannot be undone.", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Delete", style: "destructive", onPress: doDelete },
+    ]);
   };
 
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator />
-        <Text style={styles.meta}>Loading hive...</Text>
+        <ActivityIndicator color={T.honey} size="large" />
+        <Text style={styles.loadingText}>Loading hive...</Text>
       </View>
     );
   }
 
   return (
     <SafeAreaView style={styles.page}>
-      <View style={styles.content}>
-        <Text style={styles.title}>Edit Hive</Text>
-        <Text style={styles.meta}>Hive ID: {hiveId || "Missing"}</Text>
+      {/* Nav Bar */}
+      <View style={styles.navBar}>
+        <Pressable onPress={() => router.back()} style={styles.navButton}>
+          <Text style={styles.navButtonText}>← Back</Text>
+        </Pressable>
+        <Pressable onPress={() => router.push("/hive")} style={styles.navButton}>
+          <Text style={styles.navButtonText}>🏠 Home</Text>
+        </Pressable>
+      </View>
 
-        <Text style={styles.label}>Hive Name</Text>
+      <ScrollView contentContainerStyle={styles.content}>
+        <Text style={styles.title}>Edit Hive</Text>
+        <Text style={styles.subtitle}>Update hive details</Text>
+
+        <Text style={styles.label}>🏠 Hive Name</Text>
         <TextInput
           value={name}
           onChangeText={setName}
-          placeholder="Example: North Yard Hive 1"
-          placeholderTextColor="#64748b"
+          placeholder="e.g. North Yard Hive"
+          placeholderTextColor={T.textMuted}
           style={styles.input}
         />
 
-        <Text style={styles.label}>Location</Text>
+        <Text style={styles.label}>📍 Location</Text>
         <TextInput
           value={location}
           onChangeText={setLocation}
-          placeholder="Example: Back field"
-          placeholderTextColor="#64748b"
+          placeholder="e.g. Back field"
+          placeholderTextColor={T.textMuted}
           style={styles.input}
         />
 
-        <Text style={styles.label}>Notes</Text>
+        <Text style={styles.label}>📝 Notes</Text>
         <TextInput
           value={notes}
           onChangeText={setNotes}
           multiline
           placeholder="Hive notes..."
-          placeholderTextColor="#64748b"
+          placeholderTextColor={T.textMuted}
           style={[styles.input, styles.notesInput]}
         />
 
@@ -209,99 +178,67 @@ export default function EditHiveScreen() {
           style={[styles.deleteButton, (saving || deleting) && styles.disabledButton]}
         >
           <Text style={styles.deleteText}>
-            {deleting ? "Deleting..." : "Delete Hive"}
+            {deleting ? "Deleting..." : "🗑 Delete Hive"}
           </Text>
         </Pressable>
-
-        <Pressable
-          onPress={() =>
-            router.replace({
-              pathname: "/hive/[id]",
-              params: { id: hiveId },
-            })
-          }
-          style={styles.backButton}
-        >
-          <Text style={styles.backText}>Back to Hive</Text>
-        </Pressable>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  page: {
-    flex: 1,
-    backgroundColor: "#0f172a",
+  page: { flex: 1, backgroundColor: T.bg },
+  center: { flex: 1, backgroundColor: T.bg, justifyContent: "center", alignItems: "center" },
+  loadingText: { color: T.textSecondary, marginTop: 12 },
+  navBar: {
+    flexDirection: "row",
+    paddingHorizontal: T.spaceMD,
+    paddingVertical: 10,
+    gap: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: T.border,
+    backgroundColor: T.bgNav,
   },
-  content: {
-    padding: 20,
+  navButton: {
+    backgroundColor: T.bgCard,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: T.radiusSM,
+    borderWidth: 1,
+    borderColor: T.border,
   },
-  center: {
-    flex: 1,
-    backgroundColor: "#0f172a",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  title: {
-    color: "#fff",
-    fontSize: 28,
-    fontWeight: "800",
-  },
-  meta: {
-    color: "#9ca3af",
-    marginTop: 6,
-    marginBottom: 12,
-  },
-  label: {
-    color: "#9ca3af",
-    marginTop: 14,
-    marginBottom: 6,
-  },
+  navButtonText: { color: T.textSecondary, fontWeight: "700", fontSize: T.fontSM },
+  content: { padding: T.spaceMD, paddingBottom: 50 },
+  title: { color: T.textPrimary, fontSize: T.fontLG, fontWeight: "900", marginBottom: 4 },
+  subtitle: { color: T.textMuted, fontSize: T.fontSM, marginBottom: T.spaceLG },
+  label: { color: T.textSecondary, fontSize: T.fontSM, fontWeight: "700", marginTop: T.spaceMD, marginBottom: 8 },
   input: {
-    backgroundColor: "#1e293b",
-    color: "#fff",
-    padding: 12,
-    borderRadius: 10,
-  },
-  notesInput: {
-    height: 110,
-    textAlignVertical: "top",
-  },
-  saveButton: {
-    backgroundColor: "#22c55e",
-    padding: 16,
-    borderRadius: 10,
-    marginTop: 20,
-  },
-  deleteButton: {
-    backgroundColor: "#ef4444",
-    padding: 16,
-    borderRadius: 10,
-    marginTop: 12,
-  },
-  disabledButton: {
-    backgroundColor: "#64748b",
-  },
-  saveText: {
-    color: "#0f172a",
-    textAlign: "center",
-    fontWeight: "800",
-  },
-  deleteText: {
-    color: "#fff",
-    textAlign: "center",
-    fontWeight: "800",
-  },
-  backButton: {
-    backgroundColor: "#475569",
+    backgroundColor: T.bgInput,
+    color: T.textPrimary,
     padding: 14,
-    borderRadius: 10,
-    marginTop: 12,
+    borderRadius: T.radiusMD,
+    fontSize: T.fontMD,
+    borderWidth: 1,
+    borderColor: T.border,
   },
-  backText: {
-    color: "#fff",
-    textAlign: "center",
-    fontWeight: "800",
+  notesInput: { minHeight: 110, textAlignVertical: "top" },
+  saveButton: {
+    backgroundColor: T.green,
+    padding: 16,
+    borderRadius: T.radiusMD,
+    alignItems: "center",
+    marginTop: T.spaceLG,
   },
+  disabledButton: { backgroundColor: T.textMuted },
+  saveText: { color: "#fff", fontWeight: "900", fontSize: T.fontMD },
+  deleteButton: {
+    backgroundColor: T.dangerBg,
+    padding: 16,
+    borderRadius: T.radiusMD,
+    alignItems: "center",
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: T.danger,
+  },
+  deleteText: { color: "#fca5a5", fontWeight: "900", fontSize: T.fontMD },
 });

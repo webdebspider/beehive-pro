@@ -1,3 +1,13 @@
+/**
+ * app/hive/charts.tsx
+ *
+ * Charts Screen — compact pest history and health scores by hive.
+ * Loads all hives and their inspections from Firestore.
+ * Calculates a health score per hive based on latest inspection data.
+ *
+ * Health score factors: queen status, brood pattern, mite count, beetle level.
+ */
+
 import { useRouter } from "expo-router";
 import { collection, getDocs } from "firebase/firestore";
 import { useEffect, useState } from "react";
@@ -11,12 +21,9 @@ import {
   View,
 } from "react-native";
 import { db } from "../../utils/firebase";
+import { T } from "../../utils/theme";
 
-type Hive = {
-  id: string;
-  name?: string;
-};
-
+type Hive = { id: string; name?: string };
 type Inspection = {
   id: string;
   mites?: number | string | null;
@@ -30,41 +37,23 @@ type Inspection = {
 
 export default function ChartsScreen() {
   const router = useRouter();
-
   const [hives, setHives] = useState<Hive[]>([]);
   const [data, setData] = useState<Record<string, Inspection[]>>({});
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  useEffect(() => { loadData(); }, []);
 
   const loadData = async () => {
     try {
       const hiveSnap = await getDocs(collection(db, "hives"));
-
-      const hiveList: Hive[] = hiveSnap.docs.map((doc) => ({
-        id: doc.id,
-        ...(doc.data() as Omit<Hive, "id">),
-      }));
-
+      const hiveList: Hive[] = hiveSnap.docs.map((doc) => ({ id: doc.id, ...(doc.data() as Omit<Hive, "id">) }));
       const inspectionMap: Record<string, Inspection[]> = {};
-
       for (const hive of hiveList) {
-        const snap = await getDocs(
-          collection(db, "hives", hive.id, "inspections")
-        );
-
-        const inspections = snap.docs.map((doc) => ({
-          id: doc.id,
-          ...(doc.data() as Omit<Inspection, "id">),
-        }));
-
+        const snap = await getDocs(collection(db, "hives", hive.id, "inspections"));
+        const inspections = snap.docs.map((doc) => ({ id: doc.id, ...(doc.data() as Omit<Inspection, "id">) }));
         inspections.sort((a, b) => getInspectionTime(b) - getInspectionTime(a));
-
         inspectionMap[hive.id] = inspections;
       }
-
       setHives(hiveList);
       setData(inspectionMap);
     } catch (e) {
@@ -77,17 +66,27 @@ export default function ChartsScreen() {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator />
-        <Text style={styles.meta}>Loading charts...</Text>
+        <ActivityIndicator color={T.honey} size="large" />
+        <Text style={styles.loadingText}>Loading charts...</Text>
       </View>
     );
   }
 
   return (
     <SafeAreaView style={styles.page}>
+      {/* Nav Bar */}
+      <View style={styles.navBar}>
+        <Pressable onPress={() => router.back()} style={styles.navButton}>
+          <Text style={styles.navButtonText}>← Back</Text>
+        </Pressable>
+        <Pressable onPress={() => router.push("/hive")} style={styles.navButton}>
+          <Text style={styles.navButtonText}>🏠 Home</Text>
+        </Pressable>
+      </View>
+
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.title}>Hive Charts</Text>
-        <Text style={styles.subtitle}>Compact pest history by hive</Text>
+        <Text style={styles.title}>📊 Hive Charts</Text>
+        <Text style={styles.subtitle}>Pest history and health scores</Text>
 
         {hives.map((hive) => {
           const inspections = data[hive.id] || [];
@@ -96,62 +95,48 @@ export default function ChartsScreen() {
 
           return (
             <View key={hive.id} style={styles.card}>
-              <View style={styles.headerRow}>
+              {/* Card header with health badge */}
+              <View style={styles.cardHeader}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.hiveName}>{hive.name || hive.id}</Text>
-                  <Text style={styles.smallMeta}>
-                    {inspections.length} inspection
-                    {inspections.length === 1 ? "" : "s"}
+                  <Text style={styles.inspCount}>
+                    {inspections.length} inspection{inspections.length === 1 ? "" : "s"}
                   </Text>
                 </View>
-
-                <View
-                  style={[
-                    styles.healthBadge,
-                    { backgroundColor: health.color },
-                  ]}
-                >
-                  <Text style={styles.healthBadgeText}>
+                <View style={[styles.healthBadge, { backgroundColor: health.color }]}>
+                  <Text style={styles.healthScore}>
                     {health.score === null ? "—" : health.score}
                   </Text>
                 </View>
               </View>
 
-              <Text style={styles.reason}>{health.status}</Text>
+              {/* Health status label */}
+              <Text style={[styles.healthStatus, { color: health.color }]}>
+                {health.status}
+              </Text>
 
+              {/* Pest history chips */}
               {inspections.length === 0 ? (
                 <Text style={styles.noData}>No pest history yet</Text>
               ) : (
-                <View style={styles.chipWrap}>
+                <View style={styles.chipRow}>
                   {inspections.map((i) => (
-                    <View key={i.id} style={styles.pestChip}>
-                      <View style={styles.chipTopRow}>
-                        <Text style={styles.chipMain}>
-                          M {formatMites(i.mites)}
-                        </Text>
-                        <Text style={styles.chipMain}>
-                          B {formatBeetles(i.hiveBeetles)}
-                        </Text>
+                    <View key={i.id} style={styles.chip}>
+                      <View style={styles.chipTop}>
+                        <Text style={styles.chipValue}>M {formatMites(i.mites)}</Text>
+                        <Text style={styles.chipValue}>B {formatBeetles(i.hiveBeetles)}</Text>
                       </View>
-
-                      <Text style={styles.chipDate}>
-                        {formatShortDate(i)}
-                      </Text>
+                      <Text style={styles.chipDate}>{formatShortDate(i)}</Text>
                     </View>
                   ))}
                 </View>
               )}
 
               <Pressable
-                onPress={() =>
-                  router.push({
-                    pathname: "/hive/[id]",
-                    params: { id: hive.id },
-                  })
-                }
+                onPress={() => router.push({ pathname: "/hive/[id]", params: { id: hive.id } })}
                 style={styles.openButton}
               >
-                <Text style={styles.openText}>Open Hive</Text>
+                <Text style={styles.openText}>Open Hive →</Text>
               </Pressable>
             </View>
           );
@@ -161,31 +146,14 @@ export default function ChartsScreen() {
   );
 }
 
-function getInspectionTime(inspection: Inspection) {
-  if (inspection.createdAt?.toDate) {
-    return inspection.createdAt.toDate().getTime();
-  }
-
-  if (inspection.date) {
-    return new Date(inspection.date).getTime();
-  }
-
-  return 0;
+function getInspectionTime(i: Inspection) {
+  return i.createdAt?.toDate?.()?.getTime?.() || (i.date ? new Date(i.date).getTime() : 0);
 }
 
-function formatShortDate(inspection: Inspection) {
-  const date =
-    inspection.createdAt?.toDate?.() ||
-    (inspection.date ? new Date(inspection.date) : null);
-
+function formatShortDate(i: Inspection) {
+  const date = i.createdAt?.toDate?.() || (i.date ? new Date(i.date) : null);
   if (!date) return "no date";
-
-  return date.toLocaleString([], {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
+  return date.toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 }
 
 function formatMites(value: Inspection["mites"]) {
@@ -195,49 +163,30 @@ function formatMites(value: Inspection["mites"]) {
 
 function formatBeetles(value?: string) {
   if (!value) return "—";
-
   if (value === "none") return "0";
   if (value === "few") return "few";
   if (value === "moderate") return "mod";
   if (value === "heavy") return "high";
-
   return value;
 }
 
 function calculateHealth(inspection?: Inspection) {
-  if (!inspection) {
-    return {
-      score: null as number | null,
-      status: "No inspection yet",
-      color: "#94a3b8",
-    };
-  }
-
+  if (!inspection) return { score: null as number | null, status: "No inspection yet", color: T.textMuted };
   let score = 100;
-
   if (inspection.queen === "not_found") score -= 25;
   if (inspection.queen === "cells") score -= 10;
   if (inspection.brood === "weak") score -= 20;
   if (inspection.brood === "spotty") score -= 15;
-
   const mites = parseMites(inspection.mites);
-
   if (mites >= 10) score -= 30;
   else if (mites >= 6) score -= 20;
   else if (mites >= 3) score -= 10;
-
   if (inspection.hiveBeetles === "heavy") score -= 25;
   if (inspection.hiveBeetles === "moderate") score -= 15;
   if (inspection.temperament === "defensive") score -= 5;
-
   score = Math.max(0, Math.min(100, score));
-
-  const status =
-    score >= 85 ? "Strong" : score >= 65 ? "Watch" : "Needs Attention";
-
-  const color =
-    score >= 85 ? "#22c55e" : score >= 65 ? "#f59e0b" : "#ef4444";
-
+  const status = score >= 85 ? "Strong" : score >= 65 ? "Watch" : "Needs Attention";
+  const color = score >= 85 ? T.greenLight : score >= 65 ? T.honey : T.danger;
   return { score, status, color };
 }
 
@@ -246,120 +195,77 @@ function parseMites(value: Inspection["mites"]) {
   if (typeof value === "number") return value;
   if (value === "10+") return 10;
   if (value === "6-10") return 8;
-
   const n = Number(value);
   return Number.isNaN(n) ? 0 : n;
 }
 
 const styles = StyleSheet.create({
-  page: {
-    flex: 1,
-    backgroundColor: "#0f172a",
-  },
-  content: {
-    padding: 16,
-  },
-  center: {
-    flex: 1,
-    backgroundColor: "#0f172a",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  title: {
-    color: "#fff",
-    fontSize: 26,
-    fontWeight: "800",
-  },
-  subtitle: {
-    color: "#94a3b8",
-    marginTop: 4,
-    marginBottom: 14,
-  },
-  card: {
-    backgroundColor: "#1e293b",
-    padding: 14,
-    borderRadius: 14,
-    marginBottom: 12,
-  },
-  headerRow: {
+  page: { flex: 1, backgroundColor: T.bg },
+  center: { flex: 1, backgroundColor: T.bg, justifyContent: "center", alignItems: "center" },
+  loadingText: { color: T.textSecondary, marginTop: 12 },
+  navBar: {
     flexDirection: "row",
-    alignItems: "center",
+    paddingHorizontal: T.spaceMD,
+    paddingVertical: 10,
     gap: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: T.border,
+    backgroundColor: T.bgNav,
   },
-  hiveName: {
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: "800",
+  navButton: {
+    backgroundColor: T.bgCard,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: T.radiusSM,
+    borderWidth: 1,
+    borderColor: T.border,
   },
-  smallMeta: {
-    color: "#64748b",
-    marginTop: 3,
-    fontSize: 12,
+  navButtonText: { color: T.textSecondary, fontWeight: "700", fontSize: T.fontSM },
+  content: { padding: T.spaceMD, paddingBottom: 50 },
+  title: { color: T.textPrimary, fontSize: T.fontLG, fontWeight: "900", marginBottom: 4 },
+  subtitle: { color: T.textMuted, fontSize: T.fontSM, marginBottom: T.spaceMD },
+  card: {
+    backgroundColor: T.bgCard,
+    padding: T.spaceMD,
+    borderRadius: T.radiusLG,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: T.border,
   },
+  cardHeader: { flexDirection: "row", alignItems: "center", marginBottom: 6 },
+  hiveName: { color: T.textPrimary, fontSize: T.fontMD, fontWeight: "900" },
+  inspCount: { color: T.textMuted, fontSize: T.fontXS, marginTop: 2 },
   healthBadge: {
-    minWidth: 44,
-    height: 34,
-    borderRadius: 999,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 10,
   },
-  healthBadgeText: {
-    color: "#0f172a",
-    fontWeight: "900",
-  },
-  reason: {
-    color: "#cbd5e1",
-    marginTop: 8,
-    fontWeight: "700",
-  },
-  chipWrap: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    marginTop: 12,
-  },
-  pestChip: {
-    backgroundColor: "#0f172a",
-    borderColor: "#334155",
+  healthScore: { color: T.bg, fontWeight: "900", fontSize: T.fontSM },
+  healthStatus: { fontWeight: "700", fontSize: T.fontSM, marginBottom: T.spaceSM },
+  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 8 },
+  chip: {
+    backgroundColor: T.bgCardAlt,
+    borderColor: T.border,
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: T.radiusSM,
     paddingVertical: 8,
     paddingHorizontal: 10,
-    minWidth: 104,
+    minWidth: 100,
   },
-  chipTopRow: {
-    flexDirection: "row",
-    gap: 10,
-  },
-  chipMain: {
-    color: "#fff",
-    fontWeight: "800",
-    fontSize: 12,
-  },
-  chipDate: {
-    color: "#94a3b8",
-    fontSize: 11,
-    marginTop: 4,
-  },
-  noData: {
-    color: "#64748b",
-    fontStyle: "italic",
-    marginTop: 12,
-  },
+  chipTop: { flexDirection: "row", gap: 10 },
+  chipValue: { color: T.textPrimary, fontWeight: "800", fontSize: T.fontXS },
+  chipDate: { color: T.textMuted, fontSize: T.fontXS, marginTop: 4 },
+  noData: { color: T.textMuted, fontStyle: "italic", marginTop: 8 },
   openButton: {
-    backgroundColor: "#22c55e",
+    backgroundColor: T.bgCardAlt,
     padding: 12,
-    borderRadius: 10,
-    marginTop: 14,
+    borderRadius: T.radiusSM,
+    marginTop: T.spaceMD,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: T.border,
   },
-  openText: {
-    color: "#0f172a",
-    textAlign: "center",
-    fontWeight: "800",
-  },
-  meta: {
-    color: "#9ca3af",
-    marginTop: 10,
-  },
+  openText: { color: T.honey, fontWeight: "800", fontSize: T.fontSM },
 });

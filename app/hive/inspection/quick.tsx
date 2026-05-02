@@ -1,25 +1,38 @@
+/**
+ * app/hive/inspection/quick.tsx
+ *
+ * Quick Inspection Screen — large tap-target buttons for fast field inspections.
+ * Designed for use while standing at the hive — gloves on, sun in your eyes.
+ *
+ * Fields: queen, brood, mites, hive beetles, temperament
+ * Saves to Firestore and falls back to local backup if offline.
+ *
+ * Route params:
+ *  - id: hive ID
+ */
+
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { addDoc, collection } from "firebase/firestore";
 import { useState } from "react";
 import {
-    Alert,
-    Pressable,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
+  Alert,
+  Pressable,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from "react-native";
 import { db } from "../../../utils/firebase";
 import {
-    removePendingInspectionBackup,
-    savePendingInspectionBackup,
+  removePendingInspectionBackup,
+  savePendingInspectionBackup,
 } from "../../../utils/localBackup";
+import { T } from "../../../utils/theme";
 
 export default function QuickInspectionScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id?: string }>();
-
   const hiveId = id ? String(id) : "";
 
   const [queen, setQueen] = useState("");
@@ -31,23 +44,14 @@ export default function QuickInspectionScreen() {
 
   const handleSave = async () => {
     if (saving) return;
-
-    if (!hiveId) {
-      Alert.alert("Missing Hive", "No hive ID provided.");
-      return;
-    }
+    if (!hiveId) { Alert.alert("Missing Hive", "No hive ID provided."); return; }
 
     const backupId = `quick_inspection_${Date.now()}`;
     const now = new Date();
 
     const inspectionData = {
       id: backupId,
-      hiveId,
-      queen,
-      brood,
-      mites,
-      hiveBeetles,
-      temperament,
+      hiveId, queen, brood, mites, hiveBeetles, temperament,
       notes: "Quick inspection entry.",
       combFindings: [],
       date: now.toISOString(),
@@ -58,46 +62,27 @@ export default function QuickInspectionScreen() {
 
     try {
       setSaving(true);
-
       await savePendingInspectionBackup(inspectionData);
-
       await addDoc(collection(db, "hives", hiveId, "inspections"), {
-        hiveId,
-        queen,
-        brood,
-        mites,
-        hiveBeetles,
-        temperament,
+        hiveId, queen, brood, mites, hiveBeetles, temperament,
         notes: "Quick inspection entry.",
         combFindings: [],
         date: now.toISOString(),
         createdAt: now,
         quickMode: true,
       });
-
       await removePendingInspectionBackup(backupId);
-
-      router.replace({
-        pathname: "/hive/[id]",
-        params: { id: hiveId },
-      });
+      router.replace({ pathname: "/hive/[id]", params: { id: hiveId } });
     } catch (e) {
       console.log("⚠️ QUICK INSPECTION SAVED LOCALLY:", e);
-
-      Alert.alert(
-        "Saved locally",
-        "Quick inspection was saved on this device and can sync later."
-      );
-
-      router.replace({
-        pathname: "/hive/[id]",
-        params: { id: hiveId },
-      });
+      Alert.alert("Saved locally", "Quick inspection saved on this device and will sync later.");
+      router.replace({ pathname: "/hive/[id]", params: { id: hiveId } });
     } finally {
       setSaving(false);
     }
   };
 
+  /** Single tap-target option button */
   const Option = ({
     label,
     selected,
@@ -119,11 +104,21 @@ export default function QuickInspectionScreen() {
 
   return (
     <SafeAreaView style={styles.page}>
+      {/* Nav Bar */}
+      <View style={styles.navBar}>
+        <Pressable onPress={() => router.back()} style={styles.navButton}>
+          <Text style={styles.navButtonText}>← Back</Text>
+        </Pressable>
+        <Pressable onPress={() => router.push("/hive")} style={styles.navButton}>
+          <Text style={styles.navButtonText}>🏠 Home</Text>
+        </Pressable>
+      </View>
+
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.title}>Quick Inspection</Text>
+        <Text style={styles.title}>⚡ Quick Inspection</Text>
         <Text style={styles.subtitle}>Big buttons. Fast hive check.</Text>
 
-        <Text style={styles.label}>Queen</Text>
+        <Text style={styles.label}>👑 Queen</Text>
         <View style={styles.grid}>
           <Option label="Seen" selected={queen === "seen"} onPress={() => setQueen("seen")} />
           <Option label="Eggs" selected={queen === "eggs"} onPress={() => setQueen("eggs")} />
@@ -131,7 +126,7 @@ export default function QuickInspectionScreen() {
           <Option label="Queen Cells" selected={queen === "cells"} onPress={() => setQueen("cells")} />
         </View>
 
-        <Text style={styles.label}>Brood</Text>
+        <Text style={styles.label}>🐛 Brood</Text>
         <View style={styles.grid}>
           <Option label="Strong" selected={brood === "strong"} onPress={() => setBrood("strong")} />
           <Option label="Medium" selected={brood === "medium"} onPress={() => setBrood("medium")} />
@@ -139,7 +134,7 @@ export default function QuickInspectionScreen() {
           <Option label="Spotty" selected={brood === "spotty"} onPress={() => setBrood("spotty")} />
         </View>
 
-        <Text style={styles.label}>Mites</Text>
+        <Text style={styles.label}>🔬 Mites</Text>
         <View style={styles.grid}>
           <Option label="0" selected={mites === "0"} onPress={() => setMites("0")} />
           <Option label="1-2" selected={mites === "2"} onPress={() => setMites("2")} />
@@ -148,7 +143,7 @@ export default function QuickInspectionScreen() {
           <Option label="10+" selected={mites === "10+"} onPress={() => setMites("10+")} />
         </View>
 
-        <Text style={styles.label}>Hive Beetles</Text>
+        <Text style={styles.label}>🪲 Hive Beetles</Text>
         <View style={styles.grid}>
           <Option label="None" selected={hiveBeetles === "none"} onPress={() => setHiveBeetles("none")} />
           <Option label="Few" selected={hiveBeetles === "few"} onPress={() => setHiveBeetles("few")} />
@@ -156,7 +151,7 @@ export default function QuickInspectionScreen() {
           <Option label="Heavy" selected={hiveBeetles === "heavy"} onPress={() => setHiveBeetles("heavy")} />
         </View>
 
-        <Text style={styles.label}>Temperament</Text>
+        <Text style={styles.label}>😤 Temperament</Text>
         <View style={styles.grid}>
           <Option label="Calm" selected={temperament === "calm"} onPress={() => setTemperament("calm")} />
           <Option label="Active" selected={temperament === "active"} onPress={() => setTemperament("active")} />
@@ -165,23 +160,12 @@ export default function QuickInspectionScreen() {
 
         <Pressable
           onPress={handleSave}
-          style={[styles.saveButton, saving && styles.disabled]}
+          style={[styles.saveButton, saving && styles.disabledButton]}
+          disabled={saving}
         >
           <Text style={styles.saveText}>
             {saving ? "Saving..." : "Save Quick Inspection"}
           </Text>
-        </Pressable>
-
-        <Pressable
-          onPress={() =>
-            router.replace({
-              pathname: "/hive/[id]",
-              params: { id: hiveId },
-            })
-          }
-          style={styles.backButton}
-        >
-          <Text style={styles.backText}>Back to Hive</Text>
         </Pressable>
       </ScrollView>
     </SafeAreaView>
@@ -189,76 +173,66 @@ export default function QuickInspectionScreen() {
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: "#020617" },
-  content: { padding: 18, paddingBottom: 50 },
-  title: {
-    color: "#fff",
-    fontSize: 30,
-    fontWeight: "900",
-  },
-  subtitle: {
-    color: "#94a3b8",
-    marginTop: 4,
-    marginBottom: 18,
-  },
-  label: {
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: "900",
-    marginTop: 18,
-    marginBottom: 10,
-  },
-  grid: {
+  page: { flex: 1, backgroundColor: T.bg },
+  navBar: {
     flexDirection: "row",
-    flexWrap: "wrap",
+    paddingHorizontal: T.spaceMD,
+    paddingVertical: 10,
     gap: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: T.border,
+    backgroundColor: T.bgNav,
   },
+  navButton: {
+    backgroundColor: T.bgCard,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: T.radiusSM,
+    borderWidth: 1,
+    borderColor: T.border,
+  },
+  navButtonText: { color: T.textSecondary, fontWeight: "700", fontSize: T.fontSM },
+  content: { padding: T.spaceMD, paddingBottom: 50 },
+  title: { color: T.textPrimary, fontSize: T.fontLG, fontWeight: "900", marginBottom: 4 },
+  subtitle: { color: T.textMuted, fontSize: T.fontSM, marginBottom: T.spaceMD },
+  label: {
+    color: T.textPrimary,
+    fontSize: T.fontMD,
+    fontWeight: "900",
+    marginTop: T.spaceLG,
+    marginBottom: T.spaceSM,
+  },
+  grid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   option: {
-    backgroundColor: "#1e293b",
+    backgroundColor: T.bgCard,
     paddingVertical: 18,
     paddingHorizontal: 14,
-    borderRadius: 14,
+    borderRadius: T.radiusMD,
     minWidth: "46%",
     alignItems: "center",
     borderWidth: 2,
-    borderColor: "#334155",
+    borderColor: T.border,
+    flex: 1,
   },
   optionSelected: {
-    backgroundColor: "#22c55e",
-    borderColor: "#86efac",
+    backgroundColor: T.honey,
+    borderColor: T.honeyLight,
   },
   optionText: {
-    color: "#fff",
-    fontSize: 16,
+    color: T.textSecondary,
+    fontSize: T.fontMD,
     fontWeight: "900",
   },
   optionTextSelected: {
-    color: "#0f172a",
+    color: T.bg,
   },
   saveButton: {
-    backgroundColor: "#22c55e",
+    backgroundColor: T.green,
     padding: 18,
-    borderRadius: 14,
-    marginTop: 28,
+    borderRadius: T.radiusMD,
+    alignItems: "center",
+    marginTop: T.spaceXL,
   },
-  saveText: {
-    color: "#0f172a",
-    textAlign: "center",
-    fontWeight: "900",
-    fontSize: 17,
-  },
-  disabled: {
-    backgroundColor: "#64748b",
-  },
-  backButton: {
-    backgroundColor: "#475569",
-    padding: 16,
-    borderRadius: 14,
-    marginTop: 12,
-  },
-  backText: {
-    color: "#fff",
-    textAlign: "center",
-    fontWeight: "900",
-  },
+  disabledButton: { backgroundColor: T.textMuted },
+  saveText: { color: "#fff", fontWeight: "900", fontSize: T.fontMD },
 });
