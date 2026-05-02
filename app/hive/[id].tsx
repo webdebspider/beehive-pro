@@ -1,3 +1,21 @@
+/**
+ * app/hive/[id].tsx
+ *
+ * Hive Detail Screen — shows all inspections for a single hive.
+ *
+ * Route params:
+ *  - id: the Firestore hive document ID (passed from the hive list screen)
+ *
+ * Features:
+ *  - Loads all inspections for the hive from Firestore on mount
+ *  - Displays inspections sorted newest first
+ *  - Each inspection card is tappable → navigates to edit screen
+ *  - Photos in each card are tappable → navigates to photo viewer
+ *  - "+ Add Inspection" button routes to the add inspection screen
+ *  - Back/Home nav buttons on every screen for consistent navigation
+ *  - OfflineBanner shows when device has no internet
+ */
+
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { collection, getDocs } from "firebase/firestore";
 import { useEffect, useState } from "react";
@@ -11,8 +29,10 @@ import {
   Text,
   View,
 } from "react-native";
+import OfflineBanner from "../../components/OfflineBanner";
 import { db } from "../../utils/firebase";
 
+/** Shape of an inspection document from Firestore */
 type Inspection = {
   id: string;
   queen?: string;
@@ -32,10 +52,15 @@ export default function HiveDetailScreen() {
   const [inspections, setInspections] = useState<Inspection[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Load inspections whenever hiveId changes
   useEffect(() => {
     loadInspections();
   }, [hiveId]);
 
+  /**
+   * Fetches all inspections for this hive from Firestore.
+   * Sorts them newest-first using the createdAt timestamp.
+   */
   const loadInspections = async () => {
     if (!hiveId) return;
     try {
@@ -46,11 +71,14 @@ export default function HiveDetailScreen() {
         id: doc.id,
         ...(doc.data() as any),
       }));
+
+      // Sort descending by createdAt (newest first)
       list.sort((a, b) => {
         const t1 = a.createdAt?.toDate?.()?.getTime?.() || 0;
         const t2 = b.createdAt?.toDate?.()?.getTime?.() || 0;
         return t2 - t1;
       });
+
       setInspections(list);
     } catch (e) {
       console.log("LOAD ERROR", e);
@@ -70,7 +98,10 @@ export default function HiveDetailScreen() {
 
   return (
     <SafeAreaView style={styles.page}>
-      {/* Nav Bar */}
+      {/* Shows amber banner when device is offline */}
+      <OfflineBanner />
+
+      {/* Nav Bar — consistent across all screens */}
       <View style={styles.navBar}>
         <Pressable onPress={() => router.back()} style={styles.navButton}>
           <Text style={styles.navButtonText}>← Back</Text>
@@ -81,6 +112,7 @@ export default function HiveDetailScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
+        {/* Title row with Add Inspection button */}
         <View style={styles.titleRow}>
           <Text style={styles.title}>Hive Detail</Text>
           <Pressable
@@ -96,10 +128,12 @@ export default function HiveDetailScreen() {
           </Pressable>
         </View>
 
+        {/* Empty state when no inspections exist yet */}
         {inspections.length === 0 && (
           <Text style={styles.empty}>No inspections yet. Add one above!</Text>
         )}
 
+        {/* Inspection cards — tap to edit */}
         {inspections.map((inspection) => {
           const photos = inspection.photoUrls || [];
 
@@ -114,17 +148,20 @@ export default function HiveDetailScreen() {
                 })
               }
             >
+              {/* Date header */}
               <Text style={styles.date}>
                 {inspection.createdAt?.toDate
                   ? inspection.createdAt.toDate().toLocaleString()
                   : "No date"}
               </Text>
 
+              {/* Queen and brood summary */}
               <Text style={styles.meta}>
                 Queen: {inspection.queen || "-"} | Brood:{" "}
                 {inspection.brood || "-"}
               </Text>
 
+              {/* Horizontal photo strip — tap a photo to open full viewer */}
               {photos.length > 0 && (
                 <View style={styles.photosBox}>
                   <Text style={styles.photosTitle}>Photos</Text>
@@ -157,6 +194,7 @@ export default function HiveDetailScreen() {
                 <Text style={styles.notes}>{inspection.notes}</Text>
               ) : null}
 
+              {/* Subtle hint that the card is tappable */}
               <Text style={styles.editHint}>Tap to edit →</Text>
             </Pressable>
           );
@@ -182,11 +220,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     borderRadius: 8,
   },
-  navButtonText: {
-    color: "#94a3b8",
-    fontWeight: "700",
-    fontSize: 14,
-  },
+  navButtonText: { color: "#94a3b8", fontWeight: "700", fontSize: 14 },
   content: { padding: 20 },
   center: {
     flex: 1,
@@ -207,16 +241,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     borderRadius: 8,
   },
-  addButtonText: {
-    color: "#0f172a",
-    fontWeight: "800",
-    fontSize: 14,
-  },
-  empty: {
-    color: "#64748b",
-    marginTop: 20,
-    textAlign: "center",
-  },
+  addButtonText: { color: "#0f172a", fontWeight: "800", fontSize: 14 },
+  empty: { color: "#64748b", marginTop: 20, textAlign: "center" },
   meta: { color: "#cbd5e1", marginTop: 4 },
   card: {
     backgroundColor: "#1e293b",
@@ -226,12 +252,7 @@ const styles = StyleSheet.create({
   },
   date: { color: "#93c5fd", fontWeight: "700", marginBottom: 6 },
   notes: { color: "#fff", marginTop: 6 },
-  editHint: {
-    color: "#475569",
-    fontSize: 11,
-    marginTop: 8,
-    textAlign: "right",
-  },
+  editHint: { color: "#475569", fontSize: 11, marginTop: 8, textAlign: "right" },
   photosBox: { marginTop: 10 },
   photosTitle: { color: "#9ca3af", fontSize: 12, marginBottom: 6 },
   photoRow: { flexDirection: "row" },

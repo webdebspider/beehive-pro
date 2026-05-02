@@ -1,3 +1,23 @@
+/**
+ * app/hive/inspection/edit.tsx
+ *
+ * Edit Inspection Screen — loads and edits an existing inspection record.
+ *
+ * Route params:
+ *  - hiveId: the Firestore hive document ID
+ *  - inspectionId: the Firestore inspection document ID
+ *
+ * Features:
+ *  - Loads existing notes and photos from Firestore on mount
+ *  - Allows editing notes and adding/removing photos
+ *  - Save updates the Firestore document and returns to hive detail
+ *  - Delete permanently removes the inspection (with confirmation alert)
+ *  - Back/Home nav buttons for consistent navigation
+ *
+ * Note: Currently only saves notes and photoUris.
+ * TODO: Add queen/brood fields to edit screen to match add screen.
+ */
+
 import * as ImagePicker from "expo-image-picker";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { deleteDoc, doc, getDoc, updateDoc } from "firebase/firestore";
@@ -18,6 +38,8 @@ import { db } from "../../../utils/firebase";
 
 export default function EditInspectionScreen() {
   const router = useRouter();
+
+  // Note: param is "inspectionId" not "id" — must match what [id].tsx sends
   const { inspectionId, hiveId } = useLocalSearchParams<{
     inspectionId?: string;
     hiveId?: string;
@@ -35,6 +57,7 @@ export default function EditInspectionScreen() {
     loadInspection();
   }, []);
 
+  /** Fetches the existing inspection data from Firestore */
   const loadInspection = async () => {
     try {
       const ref = doc(db, "hives", resolvedHiveId, "inspections", resolvedInspectionId);
@@ -51,6 +74,7 @@ export default function EditInspectionScreen() {
     }
   };
 
+  /** Opens photo library to add more photos to this inspection */
   const pickPhoto = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
@@ -67,6 +91,7 @@ export default function EditInspectionScreen() {
     }
   };
 
+  /** Opens camera to add a new photo to this inspection */
   const takePhoto = async () => {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
     if (!permission.granted) {
@@ -79,10 +104,12 @@ export default function EditInspectionScreen() {
     }
   };
 
+  /** Removes a photo from the local list (does not delete from Storage) */
   const removePhoto = (uri: string) => {
     setPhotoUris((prev) => prev.filter((p) => p !== uri));
   };
 
+  /** Saves updated notes and photos back to Firestore */
   const handleSave = async () => {
     if (saving) return;
     try {
@@ -103,6 +130,10 @@ export default function EditInspectionScreen() {
     }
   };
 
+  /**
+   * Permanently deletes this inspection from Firestore.
+   * Shows a confirmation alert before proceeding.
+   */
   const handleDelete = async () => {
     Alert.alert("Delete?", "This cannot be undone", [
       { text: "Cancel" },
@@ -131,7 +162,7 @@ export default function EditInspectionScreen() {
 
   return (
     <SafeAreaView style={styles.page}>
-      {/* Nav Bar */}
+      {/* Nav Bar — consistent across all screens */}
       <View style={styles.navBar}>
         <Pressable onPress={() => router.back()} style={styles.navButton}>
           <Text style={styles.navButtonText}>← Back</Text>
@@ -154,6 +185,7 @@ export default function EditInspectionScreen() {
           </Pressable>
         </View>
 
+        {/* Photo grid — tap any photo to remove it */}
         <View style={styles.photoGrid}>
           {photoUris.map((uri) => (
             <Pressable key={uri} onPress={() => removePhoto(uri)}>
@@ -174,11 +206,10 @@ export default function EditInspectionScreen() {
         />
 
         <Pressable style={styles.save} onPress={handleSave}>
-          <Text style={styles.saveText}>
-            {saving ? "Saving..." : "Save"}
-          </Text>
+          <Text style={styles.saveText}>{saving ? "Saving..." : "Save"}</Text>
         </Pressable>
 
+        {/* Red delete button — triggers confirmation alert */}
         <Pressable style={styles.delete} onPress={handleDelete}>
           <Text style={styles.deleteText}>Delete</Text>
         </Pressable>
@@ -203,29 +234,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     borderRadius: 8,
   },
-  navButtonText: {
-    color: "#94a3b8",
-    fontWeight: "700",
-    fontSize: 14,
-  },
+  navButtonText: { color: "#94a3b8", fontWeight: "700", fontSize: 14 },
   content: { padding: 20 },
   center: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#0f172a" },
   title: { color: "#fff", fontSize: 26, fontWeight: "800", marginBottom: 8 },
   label: { color: "#9ca3af", marginTop: 12 },
   row: { flexDirection: "row", gap: 10, marginTop: 8 },
-  button: {
-    backgroundColor: "#334155",
-    padding: 12,
-    borderRadius: 10,
-    flex: 1,
-  },
+  button: { backgroundColor: "#334155", padding: 12, borderRadius: 10, flex: 1 },
   buttonText: { color: "#fff", textAlign: "center", fontWeight: "800" },
-  photoGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
-    marginTop: 10,
-  },
+  photoGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 10 },
   photo: { width: 110, height: 110, borderRadius: 10 },
   removeText: { color: "#fca5a5", fontSize: 11, marginTop: 2, textAlign: "center" },
   input: {
@@ -237,18 +254,8 @@ const styles = StyleSheet.create({
     textAlignVertical: "top",
     marginTop: 8,
   },
-  save: {
-    backgroundColor: "#22c55e",
-    padding: 14,
-    borderRadius: 10,
-    marginTop: 20,
-  },
+  save: { backgroundColor: "#22c55e", padding: 14, borderRadius: 10, marginTop: 20 },
   saveText: { textAlign: "center", fontWeight: "800", color: "#0f172a" },
-  delete: {
-    backgroundColor: "#ef4444",
-    padding: 14,
-    borderRadius: 10,
-    marginTop: 10,
-  },
+  delete: { backgroundColor: "#ef4444", padding: 14, borderRadius: 10, marginTop: 10 },
   deleteText: { textAlign: "center", fontWeight: "800", color: "#fff" },
 });

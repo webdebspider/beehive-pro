@@ -1,3 +1,27 @@
+/**
+ * app/hive/ai-comb.tsx
+ *
+ * AI Comb Review Screen — analyzes a honeycomb photo using the Anthropic API.
+ *
+ * Route params:
+ *  - uri: local device URI of the comb photo to analyze
+ *
+ * Features:
+ *  - Displays the selected comb photo full width
+ *  - "Analyze Comb" button sends the photo to Claude via Anthropic API
+ *  - Photo is converted to base64 using expo-file-system before sending
+ *  - Claude responds with a structured beekeeping report covering:
+ *    eggs, larvae, capped brood, honey, pollen, and warning signs
+ *  - Error state shown if API call fails
+ *  - Back/Home nav buttons for consistent navigation
+ *
+ * Requirements:
+ *  - EXPO_PUBLIC_ANTHROPIC_API_KEY must be set in .env file
+ *
+ * Note: API key is currently used client-side (fine for dev/personal use).
+ * TODO: Move to a backend proxy before public app store release.
+ */
+
 import * as FileSystem from "expo-file-system";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
@@ -20,6 +44,11 @@ export default function AiCombScreen() {
   const [result, setResult] = useState("");
   const [error, setError] = useState("");
 
+  /**
+   * Converts the photo to base64 and sends it to the Anthropic API.
+   * Uses Claude's vision capability with a beekeeping-specific prompt.
+   * The prompt requests a structured report with 7 specific categories.
+   */
   const analyzePhoto = async () => {
     if (!photoUri) return;
     setAnalyzing(true);
@@ -27,7 +56,7 @@ export default function AiCombScreen() {
     setError("");
 
     try {
-      // Read photo as base64
+      // Convert local photo URI to base64 for API transmission
       const base64 = await FileSystem.readAsStringAsync(photoUri, {
         encoding: FileSystem.EncodingType.Base64,
       });
@@ -47,6 +76,7 @@ export default function AiCombScreen() {
               role: "user",
               content: [
                 {
+                  // Send photo as base64 encoded image
                   type: "image",
                   source: {
                     type: "base64",
@@ -55,6 +85,7 @@ export default function AiCombScreen() {
                   },
                 },
                 {
+                  // Structured beekeeping prompt for consistent output
                   type: "text",
                   text: `You are an expert beekeeper reviewing a photo of honeycomb. Analyze this comb photo and provide a clear, practical report covering:
 
@@ -93,7 +124,7 @@ Be concise and practical. If the image is unclear or not a comb photo, say so.`,
 
   return (
     <SafeAreaView style={styles.page}>
-      {/* Nav Bar */}
+      {/* Nav Bar — consistent across all screens */}
       <View style={styles.navBar}>
         <Pressable onPress={() => router.back()} style={styles.navButton}>
           <Text style={styles.navButtonText}>← Back</Text>
@@ -109,6 +140,7 @@ Be concise and practical. If the image is unclear or not a comb photo, say so.`,
           Identifies eggs, larvae, brood, pollen, honey, and warning signs.
         </Text>
 
+        {/* Photo display or empty state */}
         {photoUri ? (
           <Image source={{ uri: photoUri }} style={styles.photo} resizeMode="contain" />
         ) : (
@@ -117,6 +149,7 @@ Be concise and practical. If the image is unclear or not a comb photo, say so.`,
           </View>
         )}
 
+        {/* Analyze button — disabled if no photo or already analyzing */}
         <Pressable
           onPress={analyzePhoto}
           disabled={!photoUri || analyzing}
@@ -130,12 +163,14 @@ Be concise and practical. If the image is unclear or not a comb photo, say so.`,
           </Text>
         </Pressable>
 
+        {/* Error state */}
         {error ? (
           <View style={styles.errorBox}>
             <Text style={styles.errorText}>{error}</Text>
           </View>
         ) : null}
 
+        {/* AI analysis result */}
         {result ? (
           <View style={styles.resultBox}>
             <Text style={styles.resultTitle}>🔍 Review Result</Text>
@@ -163,11 +198,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     borderRadius: 8,
   },
-  navButtonText: {
-    color: "#94a3b8",
-    fontWeight: "700",
-    fontSize: 14,
-  },
+  navButtonText: { color: "#94a3b8", fontWeight: "700", fontSize: 14 },
   content: { padding: 20, paddingBottom: 50 },
   title: { color: "#fff", fontSize: 30, fontWeight: "900" },
   subtitle: { color: "#94a3b8", marginTop: 6, marginBottom: 16 },
@@ -192,11 +223,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   disabledButton: { backgroundColor: "#64748b" },
-  analyzeText: {
-    color: "#0f172a",
-    textAlign: "center",
-    fontWeight: "900",
-  },
+  analyzeText: { color: "#0f172a", textAlign: "center", fontWeight: "900" },
   errorBox: {
     backgroundColor: "#450a0a",
     padding: 14,
@@ -210,11 +237,6 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     marginTop: 16,
   },
-  resultTitle: {
-    color: "#fff",
-    fontWeight: "900",
-    marginBottom: 8,
-    fontSize: 16,
-  },
+  resultTitle: { color: "#fff", fontWeight: "900", marginBottom: 8, fontSize: 16 },
   resultText: { color: "#cbd5e1", lineHeight: 22 },
 });
