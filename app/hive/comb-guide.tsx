@@ -4,10 +4,9 @@
  * Comb Guide Screen — multi-select field guide with beginner learning sections.
  *
  * Beginner mode features:
- *  - Cards pulse/glow with amber animation hinting at expandable content
+ *  - Cards pulse/glow with amber animation
  *  - Cards auto-expand as user scrolls to them
  *  - "Learning mode on" badge shown at top
- *  - Content collapses when scrolled past
  *
  * Pro/Minimal mode:
  *  - No pulse, no auto-expand
@@ -15,11 +14,12 @@
  */
 
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Animated,
   NativeScrollEvent,
   NativeSyntheticEvent,
+  Platform,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -60,39 +60,46 @@ export default function CombGuideScreen() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
-  // Card layout positions for scroll-based auto-expand
   const cardPositions = useRef<Record<string, { top: number; bottom: number }>>({});
-  const scrollY = useRef(0);
 
-  // Pulse animations — one per card
+  // One pulse animation per card
   const pulseAnims = useRef<Record<string, Animated.Value>>(
     Object.fromEntries(FINDINGS.map((f) => [f.id, new Animated.Value(1)]))
   ).current;
 
-  // Start pulse loop for a card
   const startPulse = (id: string) => {
     Animated.loop(
       Animated.sequence([
-        Animated.timing(pulseAnims[id], { toValue: 1.03, duration: 900, useNativeDriver: true }),
-        Animated.timing(pulseAnims[id], { toValue: 1, duration: 900, useNativeDriver: true }),
+        Animated.timing(pulseAnims[id], {
+          toValue: 1.03,
+          duration: 900,
+          useNativeDriver: Platform.OS !== "web",
+        }),
+        Animated.timing(pulseAnims[id], {
+          toValue: 1,
+          duration: 900,
+          useNativeDriver: Platform.OS !== "web",
+        }),
       ])
     ).start();
   };
 
-  // Stop pulse for a card
   const stopPulse = (id: string) => {
     pulseAnims[id].stopAnimation();
     pulseAnims[id].setValue(1);
   };
 
-  // Start all pulses on mount in beginner mode
+  // Start pulse animations in beginner mode
   const pulsesStarted = useRef(false);
-  if (isBeginner && !pulsesStarted.current) {
-    pulsesStarted.current = true;
-    setTimeout(() => {
-      FINDINGS.forEach((f) => startPulse(f.id));
-    }, 500);
-  }
+  useEffect(() => {
+    if (isBeginner && !pulsesStarted.current) {
+      pulsesStarted.current = true;
+      const timer = setTimeout(() => {
+        FINDINGS.forEach((f) => startPulse(f.id));
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [isBeginner]);
 
   const toggleFinding = (findingId: string) => {
     setSelected((prev) => {
@@ -117,18 +124,11 @@ export default function CombGuideScreen() {
     });
   };
 
-  /**
-   * On scroll, check which card is centered in the viewport.
-   * In beginner mode, auto-expand that card and collapse others.
-   */
+  // Auto-expand card centered in viewport when in beginner mode
   const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     if (!isBeginner) return;
-
     const y = e.nativeEvent.contentOffset.y;
     const viewHeight = e.nativeEvent.layoutMeasurement.height;
-    scrollY.current = y;
-
-    // Center of current viewport
     const viewCenter = y + viewHeight * 0.4;
 
     let activeId: string | null = null;
@@ -141,16 +141,11 @@ export default function CombGuideScreen() {
 
     if (activeId) {
       setExpanded((prev) => {
+        if (prev.has(activeId!)) return prev;
         const next = new Set<string>();
-        // Only expand the active card
-        if (!prev.has(activeId!)) {
-          next.add(activeId!);
-          stopPulse(activeId!);
-          // Restart pulse on cards that collapse
-          prev.forEach((id) => { if (id !== activeId) startPulse(id); });
-        } else {
-          next.add(activeId!);
-        }
+        next.add(activeId!);
+        stopPulse(activeId!);
+        prev.forEach((id) => { if (id !== activeId) startPulse(id); });
         return next;
       });
     }
@@ -196,7 +191,9 @@ export default function CombGuideScreen() {
         {/* Selection count banner */}
         {selected.size > 0 && (
           <View style={S.selectionBanner}>
-            <Text style={S.selectionText}>{selected.size} finding{selected.size === 1 ? "" : "s"} selected</Text>
+            <Text style={S.selectionText}>
+              {selected.size} finding{selected.size === 1 ? "" : "s"} selected
+            </Text>
             <Pressable onPress={() => setSelected(new Set())} style={S.clearButton}>
               <Text style={S.clearText}>Clear</Text>
             </Pressable>
@@ -215,11 +212,6 @@ export default function CombGuideScreen() {
                 S.cardWrapper,
                 isBeginner && !isExpanded && {
                   transform: [{ scale: pulseAnims[finding.id] }],
-                  shadowColor: theme.honey,
-                  shadowOpacity: 0.4,
-                  shadowRadius: 12,
-                  shadowOffset: { width: 0, height: 0 },
-                  elevation: 6,
                 },
               ]}
               onLayout={(e) => {
@@ -227,21 +219,33 @@ export default function CombGuideScreen() {
                 cardPositions.current[finding.id] = { top: y, bottom: y + height };
               }}
             >
-              <View style={[S.card, isSelected && S.cardSelected, isExpanded && isBeginner && S.cardActive]}>
-                {/* Main tap area */}
+              <View style={[
+                S.card,
+                isSelected && S.cardSelected,
+                isExpanded && isBeginner && S.cardActive,
+              ]}>
+                {/* Select tap area */}
                 <Pressable onPress={() => toggleFinding(finding.id)}>
                   <View style={S.cardHeader}>
                     <Text style={S.cardEmoji}>{finding.emoji}</Text>
-                    <Text style={[S.cardTitle, isSelected && S.cardTitleSelected]}>{finding.title}</Text>
-                    {isSelected && <View style={S.checkBadge}><Text style={S.checkText}>✓</Text></View>}
+                    <Text style={[S.cardTitle, isSelected && S.cardTitleSelected]}>
+                      {finding.title}
+                    </Text>
+                    {isSelected && (
+                      <View style={S.checkBadge}>
+                        <Text style={S.checkText}>✓</Text>
+                      </View>
+                    )}
                   </View>
                   <Text style={S.cardText}>{finding.description}</Text>
-                  <Text style={S.tapHint}>{isSelected ? "✓ Selected — tap to deselect" : "Tap to select"}</Text>
+                  <Text style={S.tapHint}>
+                    {isSelected ? "✓ Selected — tap to deselect" : "Tap to select"}
+                  </Text>
                 </Pressable>
 
                 <View style={S.divider} />
 
-                {/* Learn button */}
+                {/* Learn toggle */}
                 <Pressable onPress={() => toggleExpanded(finding.id)} style={S.learnButton}>
                   <Text style={S.learnButtonText}>
                     {isExpanded ? "▼ Hide guide" : "👁 What am I looking at?"}
@@ -253,7 +257,7 @@ export default function CombGuideScreen() {
                   )}
                 </Pressable>
 
-                {/* Expanded learn section */}
+                {/* Expanded learn content */}
                 {isExpanded && (
                   <View style={S.learnContent}>
                     <View style={S.learnSection}>
@@ -284,7 +288,9 @@ export default function CombGuideScreen() {
           style={[S.submitButton, selected.size === 0 && S.disabledButton]}
         >
           <Text style={[S.submitText, selected.size === 0 && S.disabledText]}>
-            {selected.size === 0 ? "Select findings above" : `Add ${selected.size} Finding${selected.size === 1 ? "" : "s"} to Inspection →`}
+            {selected.size === 0
+              ? "Select findings above"
+              : `Add ${selected.size} Finding${selected.size === 1 ? "" : "s"} to Inspection →`}
           </Text>
         </Pressable>
       </ScrollView>
@@ -312,45 +318,132 @@ function makeStyles(theme: ReturnType<typeof useAppTheme>) {
     learningBadgeText: { color: theme.honey, fontWeight: "800", fontSize: theme.fontXS },
 
     // Selection banner
-    selectionBanner: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", backgroundColor: theme.bgCardAlt, borderWidth: 1, borderColor: theme.honey, padding: theme.spaceMD, borderRadius: theme.radiusMD, marginBottom: theme.spaceMD },
+    selectionBanner: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      backgroundColor: theme.bgCardAlt,
+      borderWidth: 1,
+      borderColor: theme.honey,
+      padding: theme.spaceMD,
+      borderRadius: theme.radiusMD,
+      marginBottom: theme.spaceMD,
+    },
     selectionText: { color: theme.honey, fontWeight: "800", fontSize: theme.fontSM },
-    clearButton: { backgroundColor: theme.bgCard, paddingVertical: 6, paddingHorizontal: 12, borderRadius: theme.radiusSM, borderWidth: 1, borderColor: theme.border },
+    clearButton: {
+      backgroundColor: theme.bgCard,
+      paddingVertical: 6,
+      paddingHorizontal: 12,
+      borderRadius: theme.radiusSM,
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
     clearText: { color: theme.textSecondary, fontSize: theme.fontXS, fontWeight: "700" },
 
-    // Card wrapper (for pulse animation)
-    cardWrapper: { marginBottom: 12, borderRadius: theme.radiusLG },
+    // Card wrapper for pulse animation
+    cardWrapper: {
+      marginBottom: 12,
+      borderRadius: theme.radiusLG,
+      ...(Platform.OS !== "web" ? {
+        shadowColor: theme.honey,
+        shadowOpacity: 0.4,
+        shadowRadius: 12,
+        shadowOffset: { width: 0, height: 0 },
+        elevation: 6,
+      } : {}),
+    },
 
     // Cards
-    card: { backgroundColor: theme.bgCard, borderRadius: theme.radiusLG, borderWidth: 2, borderColor: theme.border, overflow: "hidden" },
+    card: {
+      backgroundColor: theme.bgCard,
+      borderRadius: theme.radiusLG,
+      borderWidth: 2,
+      borderColor: theme.border,
+      overflow: "hidden",
+    },
     cardSelected: { borderColor: theme.honey, backgroundColor: theme.bgCardAlt },
     cardActive: { borderColor: theme.honeyLight, borderWidth: 2 },
-    cardHeader: { flexDirection: "row", alignItems: "center", gap: 10, padding: theme.spaceMD, paddingBottom: 8 },
+    cardHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      padding: theme.spaceMD,
+      paddingBottom: 8,
+    },
     cardEmoji: { fontSize: 28 },
     cardTitle: { flex: 1, color: theme.honey, fontSize: theme.fontMD, fontWeight: "900" },
     cardTitleSelected: { color: theme.honeyLight },
-    checkBadge: { width: 28, height: 28, borderRadius: 14, backgroundColor: theme.honey, justifyContent: "center", alignItems: "center" },
+    checkBadge: {
+      width: 28, height: 28, borderRadius: 14,
+      backgroundColor: theme.honey,
+      justifyContent: "center", alignItems: "center",
+    },
     checkText: { color: theme.bg, fontWeight: "900", fontSize: theme.fontSM },
-    cardText: { color: theme.textSecondary, fontSize: theme.fontSM, lineHeight: 20, paddingHorizontal: theme.spaceMD },
-    tapHint: { color: theme.textMuted, fontSize: theme.fontXS, fontWeight: "700", paddingHorizontal: theme.spaceMD, paddingBottom: theme.spaceMD, marginTop: 8 },
+    cardText: {
+      color: theme.textSecondary,
+      fontSize: theme.fontSM,
+      lineHeight: 20,
+      paddingHorizontal: theme.spaceMD,
+    },
+    tapHint: {
+      color: theme.textMuted,
+      fontSize: theme.fontXS,
+      fontWeight: "700",
+      paddingHorizontal: theme.spaceMD,
+      paddingBottom: theme.spaceMD,
+      marginTop: 8,
+    },
 
     divider: { height: 1, backgroundColor: theme.border },
 
     // Learn button
-    learnButton: { padding: theme.spaceMD, flexDirection: "row", alignItems: "center", gap: 10 },
+    learnButton: {
+      padding: theme.spaceMD,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+    },
     learnButtonText: { color: theme.honeyLight, fontWeight: "800", fontSize: theme.fontSM },
-    learnHintBadge: { backgroundColor: theme.honey, paddingVertical: 2, paddingHorizontal: 8, borderRadius: 20 },
+    learnHintBadge: {
+      backgroundColor: theme.honey,
+      paddingVertical: 2,
+      paddingHorizontal: 8,
+      borderRadius: 20,
+    },
     learnHintText: { color: theme.bg, fontSize: theme.fontXS, fontWeight: "800" },
 
     // Learn content
-    learnContent: { backgroundColor: theme.bg, borderTopWidth: 1, borderTopColor: theme.border, padding: theme.spaceMD, gap: 14 },
+    learnContent: {
+      backgroundColor: theme.bg,
+      borderTopWidth: 1,
+      borderTopColor: theme.border,
+      padding: theme.spaceMD,
+      gap: 14,
+    },
     learnSection: { gap: 6 },
     learnSectionTitle: { color: theme.textPrimary, fontWeight: "900", fontSize: theme.fontSM },
     learnSectionText: { color: theme.textSecondary, fontSize: theme.fontSM, lineHeight: 22 },
-    mistakeSection: { backgroundColor: theme.warningBg, padding: theme.spaceMD, borderRadius: theme.radiusSM, borderWidth: 1, borderColor: theme.warning },
+    mistakeSection: {
+      backgroundColor: theme.warningBg,
+      padding: theme.spaceMD,
+      borderRadius: theme.radiusSM,
+      borderWidth: 1,
+      borderColor: theme.warning,
+    },
 
     // Submit
-    submitButton: { backgroundColor: theme.honey, padding: 18, borderRadius: theme.radiusMD, alignItems: "center", marginTop: theme.spaceMD },
-    disabledButton: { backgroundColor: theme.bgCardAlt, borderWidth: 1, borderColor: theme.border },
+    submitButton: {
+      backgroundColor: theme.honey,
+      padding: 18,
+      borderRadius: theme.radiusMD,
+      alignItems: "center",
+      marginTop: theme.spaceMD,
+    },
+    disabledButton: {
+      backgroundColor: theme.bgCardAlt,
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
     submitText: { color: theme.bg, fontWeight: "900", fontSize: theme.fontMD },
     disabledText: { color: theme.textMuted },
   });
