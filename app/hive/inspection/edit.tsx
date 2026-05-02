@@ -2,7 +2,6 @@
  * app/hive/inspection/edit.tsx
  *
  * Edit Inspection Screen — loads and edits an existing inspection.
- * Param "inspectionId" must match exactly what [id].tsx sends.
  */
 
 import * as ImagePicker from "expo-image-picker";
@@ -11,11 +10,12 @@ import { deleteDoc, doc, getDoc, updateDoc } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Alert, Image, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import NavBar from "../../../components/NavBar";
+import { useAppTheme } from "../../../hooks/useAppTheme";
 import { db } from "../../../utils/firebase";
-import { T } from "../../../utils/theme";
 
 export default function EditInspectionScreen() {
   const router = useRouter();
+  const theme = useAppTheme();
   const { inspectionId, hiveId } = useLocalSearchParams<{ inspectionId?: string; hiveId?: string }>();
   const resolvedInspectionId = inspectionId ? String(inspectionId) : "";
   const resolvedHiveId = hiveId ? String(hiveId) : "";
@@ -67,60 +67,69 @@ export default function EditInspectionScreen() {
     ]);
   };
 
-  if (loading) return <View style={styles.center}><ActivityIndicator color={T.honey} size="large" /></View>;
+  if (loading) {
+    return (
+      <View style={{ flex: 1, backgroundColor: theme.bg, justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator color={theme.honey} size="large" />
+      </View>
+    );
+  }
+
+  const S = makeStyles(theme);
 
   return (
-    <SafeAreaView style={styles.page}>
+    <SafeAreaView style={S.page}>
       <NavBar />
-      <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.title}>Edit Inspection</Text>
-        <Text style={styles.subtitle}>Update your notes or photos</Text>
-        <Text style={styles.label}>📷 Photos</Text>
-        <View style={styles.photoButtons}>
-          <Pressable style={styles.photoButton} onPress={takePhoto}><Text style={styles.photoButtonText}>📷 Camera</Text></Pressable>
-          <Pressable style={styles.photoButton} onPress={pickPhoto}><Text style={styles.photoButtonText}>🖼️ Gallery</Text></Pressable>
+      <ScrollView contentContainerStyle={S.content}>
+        <Text style={S.title}>Edit Inspection</Text>
+        <Text style={S.subtitle}>Update your notes or photos</Text>
+        <Text style={S.label}>📷 Photos</Text>
+        <View style={S.photoButtons}>
+          <Pressable style={S.photoButton} onPress={takePhoto}><Text style={S.photoButtonText}>📷 Camera</Text></Pressable>
+          <Pressable style={S.photoButton} onPress={pickPhoto}><Text style={S.photoButtonText}>🖼️ Gallery</Text></Pressable>
         </View>
         {photoUris.length > 0 && (
-          <View style={styles.photoGrid}>
+          <View style={S.photoGrid}>
             {photoUris.map((uri) => (
               <Pressable key={uri} onPress={() => removePhoto(uri)}>
-                <Image source={{ uri }} style={styles.photo} />
-                <Text style={styles.removeText}>Tap to remove</Text>
+                <Image source={{ uri }} style={S.photo} />
+                <Text style={S.removeText}>Tap to remove</Text>
               </Pressable>
             ))}
           </View>
         )}
-        <Text style={styles.label}>📝 Notes</Text>
-        <TextInput value={notes} onChangeText={setNotes} multiline placeholder="Inspection notes..." placeholderTextColor={T.textMuted} style={[styles.input, styles.notesInput]} />
-        <Pressable style={[styles.saveButton, saving && styles.disabledButton]} onPress={handleSave}>
-          <Text style={styles.saveText}>{saving ? "Saving..." : "Save Changes"}</Text>
+        <Text style={S.label}>📝 Notes</Text>
+        <TextInput value={notes} onChangeText={setNotes} multiline placeholder="Inspection notes..." placeholderTextColor={theme.textMuted} style={[S.input, S.notesInput]} />
+        <Pressable style={[S.saveButton, saving && S.disabledButton]} onPress={handleSave}>
+          <Text style={S.saveText}>{saving ? "Saving..." : "Save Changes"}</Text>
         </Pressable>
-        <Pressable style={styles.deleteButton} onPress={handleDelete}>
-          <Text style={styles.deleteText}>🗑 Delete Inspection</Text>
+        <Pressable style={S.deleteButton} onPress={handleDelete}>
+          <Text style={S.deleteText}>🗑 Delete Inspection</Text>
         </Pressable>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: T.bg },
-  center: { flex: 1, backgroundColor: T.bg, justifyContent: "center", alignItems: "center" },
-  content: { padding: T.spaceMD, paddingBottom: 50 },
-  title: { color: T.textPrimary, fontSize: T.fontLG, fontWeight: "900", marginBottom: 4 },
-  subtitle: { color: T.textMuted, fontSize: T.fontSM, marginBottom: T.spaceMD },
-  label: { color: T.textSecondary, fontSize: T.fontSM, fontWeight: "700", marginTop: T.spaceMD, marginBottom: 8 },
-  photoButtons: { flexDirection: "row", gap: 10 },
-  photoButton: { flex: 1, backgroundColor: T.bgCardAlt, padding: 14, borderRadius: T.radiusMD, alignItems: "center", borderWidth: 1, borderColor: T.border },
-  photoButtonText: { color: T.textPrimary, fontWeight: "800", fontSize: T.fontSM },
-  photoGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: T.spaceMD },
-  photo: { width: 100, height: 100, borderRadius: T.radiusSM },
-  removeText: { color: T.danger, fontSize: T.fontXS, marginTop: 4, textAlign: "center" },
-  input: { backgroundColor: T.bgInput, color: T.textPrimary, padding: 14, borderRadius: T.radiusMD, fontSize: T.fontMD, borderWidth: 1, borderColor: T.border },
-  notesInput: { minHeight: 120, textAlignVertical: "top" },
-  saveButton: { backgroundColor: T.green, padding: 16, borderRadius: T.radiusMD, alignItems: "center", marginTop: T.spaceLG },
-  disabledButton: { backgroundColor: T.textMuted },
-  saveText: { color: "#fff", fontWeight: "900", fontSize: T.fontMD },
-  deleteButton: { backgroundColor: T.dangerBg, padding: 16, borderRadius: T.radiusMD, alignItems: "center", marginTop: 10, borderWidth: 1, borderColor: T.danger },
-  deleteText: { color: "#fca5a5", fontWeight: "900", fontSize: T.fontMD },
-});
+function makeStyles(theme: ReturnType<typeof useAppTheme>) {
+  return StyleSheet.create({
+    page: { flex: 1, backgroundColor: theme.bg },
+    content: { padding: theme.spaceMD, paddingBottom: 50 },
+    title: { color: theme.textPrimary, fontSize: theme.fontLG, fontWeight: "900", marginBottom: 4 },
+    subtitle: { color: theme.textMuted, fontSize: theme.fontSM, marginBottom: theme.spaceMD },
+    label: { color: theme.textSecondary, fontSize: theme.fontSM, fontWeight: "700", marginTop: theme.spaceMD, marginBottom: 8 },
+    photoButtons: { flexDirection: "row", gap: 10 },
+    photoButton: { flex: 1, backgroundColor: theme.bgCardAlt, padding: 14, borderRadius: theme.radiusMD, alignItems: "center", borderWidth: 1, borderColor: theme.border },
+    photoButtonText: { color: theme.textPrimary, fontWeight: "800", fontSize: theme.fontSM },
+    photoGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: theme.spaceMD },
+    photo: { width: 100, height: 100, borderRadius: theme.radiusSM },
+    removeText: { color: theme.danger, fontSize: theme.fontXS, marginTop: 4, textAlign: "center" },
+    input: { backgroundColor: theme.bgInput, color: theme.textPrimary, padding: 14, borderRadius: theme.radiusMD, fontSize: theme.fontMD, borderWidth: 1, borderColor: theme.border },
+    notesInput: { minHeight: 120, textAlignVertical: "top" },
+    saveButton: { backgroundColor: theme.green, padding: 16, borderRadius: theme.radiusMD, alignItems: "center", marginTop: theme.spaceLG },
+    disabledButton: { backgroundColor: theme.textMuted },
+    saveText: { color: "#fff", fontWeight: "900", fontSize: theme.fontMD },
+    deleteButton: { backgroundColor: theme.dangerBg, padding: 16, borderRadius: theme.radiusMD, alignItems: "center", marginTop: 10, borderWidth: 1, borderColor: theme.danger },
+    deleteText: { color: "#fca5a5", fontWeight: "900", fontSize: theme.fontMD },
+  });
+}

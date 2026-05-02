@@ -2,9 +2,6 @@
  * app/hive/[id].tsx
  *
  * Hive Detail Screen — shows all inspections for a single hive.
- * Tapping an inspection card navigates to the edit screen.
- * Tapping a photo navigates to the photo viewer.
- * Auto-syncs queued uploads when network is restored.
  */
 
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -22,9 +19,9 @@ import {
 } from "react-native";
 import NavBar from "../../components/NavBar";
 import OfflineBanner from "../../components/OfflineBanner";
+import { useAppTheme } from "../../hooks/useAppTheme";
 import { db } from "../../utils/firebase";
 import { processSyncQueue } from "../../utils/syncQueue";
-import { T } from "../../utils/theme";
 import { useNetworkStatus } from "../../utils/useNetworkStatus";
 
 type Inspection = {
@@ -35,6 +32,7 @@ type Inspection = {
 
 export default function HiveDetailScreen() {
   const router = useRouter();
+  const theme = useAppTheme();
   const { id } = useLocalSearchParams<{ id?: string }>();
   const hiveId = id ? String(id) : "";
   const [inspections, setInspections] = useState<Inspection[]>([]);
@@ -66,74 +64,65 @@ export default function HiveDetailScreen() {
 
   if (loading) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator color={T.honey} size="large" />
-        <Text style={styles.loadingText}>Loading inspections...</Text>
+      <View style={{ flex: 1, backgroundColor: theme.bg, justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator color={theme.honey} size="large" />
+        <Text style={{ color: theme.textSecondary, marginTop: 12 }}>Loading inspections...</Text>
       </View>
     );
   }
 
+  const S = makeStyles(theme);
+
   return (
-    <SafeAreaView style={styles.page}>
+    <SafeAreaView style={S.page}>
       <OfflineBanner />
       <NavBar />
-
-      <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.titleRow}>
-          <Text style={styles.title}>Inspections</Text>
-          <View style={styles.titleButtons}>
-            <Pressable
-              style={styles.quickButton}
-              onPress={() => router.push({ pathname: "/hive/inspection/quick", params: { id: hiveId } })}
-            >
-              <Text style={styles.quickButtonText}>⚡ Quick</Text>
+      <ScrollView contentContainerStyle={S.content}>
+        <View style={S.titleRow}>
+          <Text style={S.title}>Inspections</Text>
+          <View style={S.titleButtons}>
+            <Pressable style={S.quickButton} onPress={() => router.push({ pathname: "/hive/inspection/quick", params: { id: hiveId } })}>
+              <Text style={S.quickButtonText}>⚡ Quick</Text>
             </Pressable>
-            <Pressable
-              style={styles.addButton}
-              onPress={() => router.push({ pathname: "/hive/inspection/add", params: { id: hiveId } })}
-            >
-              <Text style={styles.addButtonText}>+ Add</Text>
+            <Pressable style={S.addButton} onPress={() => router.push({ pathname: "/hive/inspection/add", params: { id: hiveId } })}>
+              <Text style={S.addButtonText}>+ Add</Text>
             </Pressable>
           </View>
         </View>
 
         {inspections.length === 0 && (
-          <View style={styles.emptyBox}>
-            <Text style={styles.emptyEmoji}>🔍</Text>
-            <Text style={styles.emptyText}>No inspections yet</Text>
-            <Text style={styles.emptyHint}>Tap "+ Add" or "⚡ Quick" to log your first inspection</Text>
+          <View style={S.emptyBox}>
+            <Text style={S.emptyEmoji}>🔍</Text>
+            <Text style={S.emptyText}>No inspections yet</Text>
+            <Text style={S.emptyHint}>Tap "+ Add" or "⚡ Quick" to log your first inspection</Text>
           </View>
         )}
 
         {inspections.map((inspection) => {
           const photos = inspection.photoUrls || [];
           return (
-            <Pressable
-              key={inspection.id}
-              style={styles.card}
-              onPress={() => router.push({ pathname: "/hive/inspection/edit", params: { hiveId, inspectionId: inspection.id } })}
-            >
-              <Text style={styles.cardDate}>
+            <Pressable key={inspection.id} style={S.card} onPress={() => router.push({ pathname: "/hive/inspection/edit", params: { hiveId, inspectionId: inspection.id } })}>
+              <Text style={S.cardDate}>
                 {inspection.createdAt?.toDate ? inspection.createdAt.toDate().toLocaleString() : "No date"}
               </Text>
-              <View style={styles.badgeRow}>
-                {inspection.queen ? <View style={styles.badge}><Text style={styles.badgeText}>👑 {inspection.queen}</Text></View> : null}
-                {inspection.brood ? <View style={styles.badge}><Text style={styles.badgeText}>🐛 {inspection.brood}</Text></View> : null}
+              <View style={S.badgeRow}>
+                {inspection.queen ? <View style={S.badge}><Text style={S.badgeText}>👑 {inspection.queen}</Text></View> : null}
+                {inspection.brood ? <View style={S.badge}><Text style={S.badgeText}>🐛 {inspection.brood}</Text></View> : null}
                 {inspection.mites !== undefined && inspection.mites !== null && inspection.mites !== "" ? (
-                  <View style={styles.badge}><Text style={styles.badgeText}>🔬 {inspection.mites}</Text></View>
+                  <View style={S.badge}><Text style={S.badgeText}>🔬 {inspection.mites}</Text></View>
                 ) : null}
               </View>
-              {inspection.notes ? <Text style={styles.notes} numberOfLines={2}>{inspection.notes}</Text> : null}
+              {inspection.notes ? <Text style={S.notes} numberOfLines={2}>{inspection.notes}</Text> : null}
               {photos.length > 0 && (
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photoStrip}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={S.photoStrip}>
                   {photos.map((uri) => (
                     <Pressable key={uri} onPress={() => router.push({ pathname: "/hive/photo-viewer", params: { uri, hiveId, inspectionId: inspection.id } })}>
-                      <Image source={{ uri }} style={styles.photo} />
+                      <Image source={{ uri }} style={S.photo} />
                     </Pressable>
                   ))}
                 </ScrollView>
               )}
-              <Text style={styles.editHint}>Tap to edit →</Text>
+              <Text style={S.editHint}>Tap to edit →</Text>
             </Pressable>
           );
         })}
@@ -142,29 +131,29 @@ export default function HiveDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: T.bg },
-  center: { flex: 1, backgroundColor: T.bg, justifyContent: "center", alignItems: "center" },
-  loadingText: { color: T.textSecondary, marginTop: 12 },
-  content: { padding: T.spaceMD, paddingBottom: 50 },
-  titleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: T.spaceMD },
-  title: { color: T.textPrimary, fontSize: T.fontLG, fontWeight: "900" },
-  titleButtons: { flexDirection: "row", gap: 8 },
-  quickButton: { backgroundColor: T.bgCardAlt, paddingVertical: 8, paddingHorizontal: 14, borderRadius: T.radiusSM, borderWidth: 1, borderColor: T.honey },
-  quickButtonText: { color: T.honey, fontWeight: "900", fontSize: T.fontSM },
-  addButton: { backgroundColor: T.green, paddingVertical: 8, paddingHorizontal: 16, borderRadius: T.radiusSM },
-  addButtonText: { color: "#fff", fontWeight: "900", fontSize: T.fontSM },
-  emptyBox: { alignItems: "center", marginTop: 40 },
-  emptyEmoji: { fontSize: 48, marginBottom: 12 },
-  emptyText: { color: T.textPrimary, fontSize: T.fontMD, fontWeight: "800" },
-  emptyHint: { color: T.textMuted, fontSize: T.fontSM, marginTop: 6, textAlign: "center" },
-  card: { backgroundColor: T.bgCard, padding: T.spaceMD, borderRadius: T.radiusLG, marginBottom: 12, borderWidth: 1, borderColor: T.border },
-  cardDate: { color: T.honey, fontWeight: "700", fontSize: T.fontSM, marginBottom: 8 },
-  badgeRow: { flexDirection: "row", gap: 8, marginBottom: 8, flexWrap: "wrap" },
-  badge: { backgroundColor: T.bgCardAlt, paddingVertical: 4, paddingHorizontal: 10, borderRadius: 20, borderWidth: 1, borderColor: T.border },
-  badgeText: { color: T.textSecondary, fontSize: T.fontXS, fontWeight: "700" },
-  notes: { color: T.textSecondary, fontSize: T.fontSM, marginBottom: 8, lineHeight: 20 },
-  photoStrip: { marginTop: 8, marginBottom: 8 },
-  photo: { width: 90, height: 90, borderRadius: T.radiusSM, marginRight: 8 },
-  editHint: { color: T.textMuted, fontSize: T.fontXS, textAlign: "right", marginTop: 4 },
-});
+function makeStyles(theme: ReturnType<typeof useAppTheme>) {
+  return StyleSheet.create({
+    page: { flex: 1, backgroundColor: theme.bg },
+    content: { padding: theme.spaceMD, paddingBottom: 50 },
+    titleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: theme.spaceMD },
+    title: { color: theme.textPrimary, fontSize: theme.fontLG, fontWeight: "900" },
+    titleButtons: { flexDirection: "row", gap: 8 },
+    quickButton: { backgroundColor: theme.bgCardAlt, paddingVertical: 8, paddingHorizontal: 14, borderRadius: theme.radiusSM, borderWidth: 1, borderColor: theme.honey },
+    quickButtonText: { color: theme.honey, fontWeight: "900", fontSize: theme.fontSM },
+    addButton: { backgroundColor: theme.green, paddingVertical: 8, paddingHorizontal: 16, borderRadius: theme.radiusSM },
+    addButtonText: { color: "#fff", fontWeight: "900", fontSize: theme.fontSM },
+    emptyBox: { alignItems: "center", marginTop: 40 },
+    emptyEmoji: { fontSize: 48, marginBottom: 12 },
+    emptyText: { color: theme.textPrimary, fontSize: theme.fontMD, fontWeight: "800" },
+    emptyHint: { color: theme.textMuted, fontSize: theme.fontSM, marginTop: 6, textAlign: "center" },
+    card: { backgroundColor: theme.bgCard, padding: theme.spaceMD, borderRadius: theme.radiusLG, marginBottom: 12, borderWidth: 1, borderColor: theme.border },
+    cardDate: { color: theme.honey, fontWeight: "700", fontSize: theme.fontSM, marginBottom: 8 },
+    badgeRow: { flexDirection: "row", gap: 8, marginBottom: 8, flexWrap: "wrap" },
+    badge: { backgroundColor: theme.bgCardAlt, paddingVertical: 4, paddingHorizontal: 10, borderRadius: 20, borderWidth: 1, borderColor: theme.border },
+    badgeText: { color: theme.textSecondary, fontSize: theme.fontXS, fontWeight: "700" },
+    notes: { color: theme.textSecondary, fontSize: theme.fontSM, marginBottom: 8, lineHeight: 20 },
+    photoStrip: { marginTop: 8, marginBottom: 8 },
+    photo: { width: 90, height: 90, borderRadius: theme.radiusSM, marginRight: 8 },
+    editHint: { color: theme.textMuted, fontSize: theme.fontXS, textAlign: "right", marginTop: 4 },
+  });
+}

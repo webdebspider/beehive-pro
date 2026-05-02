@@ -2,7 +2,6 @@
  * app/hive/edit.tsx
  *
  * Edit Hive Screen — loads and updates an existing hive document.
- * Delete removes the hive AND all its inspections from Firestore.
  */
 
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -10,11 +9,12 @@ import { collection, deleteDoc, doc, getDoc, getDocs, updateDoc } from "firebase
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Alert, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import NavBar from "../../components/NavBar";
+import { useAppTheme } from "../../hooks/useAppTheme";
 import { db } from "../../utils/firebase";
-import { T } from "../../utils/theme";
 
 export default function EditHiveScreen() {
   const router = useRouter();
+  const theme = useAppTheme();
   const { id } = useLocalSearchParams<{ id?: string }>();
   const hiveId = id ? String(id) : "";
   const [name, setName] = useState("");
@@ -85,47 +85,50 @@ export default function EditHiveScreen() {
 
   if (loading) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator color={T.honey} size="large" />
+      <View style={{ flex: 1, backgroundColor: theme.bg, justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator color={theme.honey} size="large" />
       </View>
     );
   }
 
+  const S = makeStyles(theme);
+
   return (
-    <SafeAreaView style={styles.page}>
+    <SafeAreaView style={S.page}>
       <NavBar />
-      <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.title}>Edit Hive</Text>
-        <Text style={styles.subtitle}>Update hive details</Text>
-        <Text style={styles.label}>🏠 Hive Name</Text>
-        <TextInput value={name} onChangeText={setName} placeholder="e.g. North Yard Hive" placeholderTextColor={T.textMuted} style={styles.input} />
-        <Text style={styles.label}>📍 Location</Text>
-        <TextInput value={location} onChangeText={setLocation} placeholder="e.g. Back field" placeholderTextColor={T.textMuted} style={styles.input} />
-        <Text style={styles.label}>📝 Notes</Text>
-        <TextInput value={notes} onChangeText={setNotes} multiline placeholder="Hive notes..." placeholderTextColor={T.textMuted} style={[styles.input, styles.notesInput]} />
-        <Pressable onPress={handleSave} disabled={saving || deleting} style={[styles.saveButton, (saving || deleting) && styles.disabledButton]}>
-          <Text style={styles.saveText}>{saving ? "Saving..." : "Save Hive"}</Text>
+      <ScrollView contentContainerStyle={S.content}>
+        <Text style={S.title}>Edit Hive</Text>
+        <Text style={S.subtitle}>Update hive details</Text>
+        <Text style={S.label}>🏠 Hive Name</Text>
+        <TextInput value={name} onChangeText={setName} placeholder="e.g. North Yard Hive" placeholderTextColor={theme.textMuted} style={S.input} />
+        <Text style={S.label}>📍 Location</Text>
+        <TextInput value={location} onChangeText={setLocation} placeholder="e.g. Back field" placeholderTextColor={theme.textMuted} style={S.input} />
+        <Text style={S.label}>📝 Notes</Text>
+        <TextInput value={notes} onChangeText={setNotes} multiline placeholder="Hive notes..." placeholderTextColor={theme.textMuted} style={[S.input, S.notesInput]} />
+        <Pressable onPress={handleSave} disabled={saving || deleting} style={[S.saveButton, (saving || deleting) && S.disabledButton]}>
+          <Text style={S.saveText}>{saving ? "Saving..." : "Save Hive"}</Text>
         </Pressable>
-        <Pressable onPress={handleDelete} disabled={saving || deleting} style={[styles.deleteButton, (saving || deleting) && styles.disabledButton]}>
-          <Text style={styles.deleteText}>{deleting ? "Deleting..." : "🗑 Delete Hive"}</Text>
+        <Pressable onPress={handleDelete} disabled={saving || deleting} style={[S.deleteButton, (saving || deleting) && S.disabledButton]}>
+          <Text style={S.deleteText}>{deleting ? "Deleting..." : "🗑 Delete Hive"}</Text>
         </Pressable>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: T.bg },
-  center: { flex: 1, backgroundColor: T.bg, justifyContent: "center", alignItems: "center" },
-  content: { padding: T.spaceMD, paddingBottom: 50 },
-  title: { color: T.textPrimary, fontSize: T.fontLG, fontWeight: "900", marginBottom: 4 },
-  subtitle: { color: T.textMuted, fontSize: T.fontSM, marginBottom: T.spaceLG },
-  label: { color: T.textSecondary, fontSize: T.fontSM, fontWeight: "700", marginTop: T.spaceMD, marginBottom: 8 },
-  input: { backgroundColor: T.bgInput, color: T.textPrimary, padding: 14, borderRadius: T.radiusMD, fontSize: T.fontMD, borderWidth: 1, borderColor: T.border },
-  notesInput: { minHeight: 110, textAlignVertical: "top" },
-  saveButton: { backgroundColor: T.green, padding: 16, borderRadius: T.radiusMD, alignItems: "center", marginTop: T.spaceLG },
-  disabledButton: { backgroundColor: T.textMuted },
-  saveText: { color: "#fff", fontWeight: "900", fontSize: T.fontMD },
-  deleteButton: { backgroundColor: T.dangerBg, padding: 16, borderRadius: T.radiusMD, alignItems: "center", marginTop: 10, borderWidth: 1, borderColor: T.danger },
-  deleteText: { color: "#fca5a5", fontWeight: "900", fontSize: T.fontMD },
-});
+function makeStyles(theme: ReturnType<typeof useAppTheme>) {
+  return StyleSheet.create({
+    page: { flex: 1, backgroundColor: theme.bg },
+    content: { padding: theme.spaceMD, paddingBottom: 50 },
+    title: { color: theme.textPrimary, fontSize: theme.fontLG, fontWeight: "900", marginBottom: 4 },
+    subtitle: { color: theme.textMuted, fontSize: theme.fontSM, marginBottom: theme.spaceLG },
+    label: { color: theme.textSecondary, fontSize: theme.fontSM, fontWeight: "700", marginTop: theme.spaceMD, marginBottom: 8 },
+    input: { backgroundColor: theme.bgInput, color: theme.textPrimary, padding: 14, borderRadius: theme.radiusMD, fontSize: theme.fontMD, borderWidth: 1, borderColor: theme.border },
+    notesInput: { minHeight: 110, textAlignVertical: "top" },
+    saveButton: { backgroundColor: theme.green, padding: 16, borderRadius: theme.radiusMD, alignItems: "center", marginTop: theme.spaceLG },
+    disabledButton: { backgroundColor: theme.textMuted },
+    saveText: { color: "#fff", fontWeight: "900", fontSize: theme.fontMD },
+    deleteButton: { backgroundColor: theme.dangerBg, padding: 16, borderRadius: theme.radiusMD, alignItems: "center", marginTop: 10, borderWidth: 1, borderColor: theme.danger },
+    deleteText: { color: "#fca5a5", fontWeight: "900", fontSize: theme.fontMD },
+  });
+}

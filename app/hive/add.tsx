@@ -2,7 +2,6 @@
  * app/hive/add.tsx
  *
  * Add Hive Screen — creates a new hive document in Firestore.
- * Navigates to the new hive's detail screen after saving.
  */
 
 import { useRouter } from "expo-router";
@@ -10,11 +9,12 @@ import { addDoc, collection } from "firebase/firestore";
 import { useState } from "react";
 import { Alert, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput } from "react-native";
 import NavBar from "../../components/NavBar";
+import { useAppTheme } from "../../hooks/useAppTheme";
 import { db } from "../../utils/firebase";
-import { T } from "../../utils/theme";
 
 export default function AddHiveScreen() {
   const router = useRouter();
+  const theme = useAppTheme();
   const [name, setName] = useState("");
   const [location, setLocation] = useState("");
   const [notes, setNotes] = useState("");
@@ -28,42 +28,45 @@ export default function AddHiveScreen() {
       const docRef = await addDoc(collection(db, "hives"), { name: name.trim(), location: location.trim(), notes: notes.trim(), createdAt: new Date().toISOString() });
       router.replace({ pathname: "/hive/[id]", params: { id: docRef.id } });
     } catch (e) {
-      console.log("❌ SAVE HIVE ERROR:", e);
       Alert.alert("Error", "Could not save hive.");
     } finally {
       setSaving(false);
     }
   };
 
+  const S = makeStyles(theme);
+
   return (
-    <SafeAreaView style={styles.page}>
+    <SafeAreaView style={S.page}>
       <NavBar />
-      <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.title}>New Hive</Text>
-        <Text style={styles.subtitle}>Add a hive to your apiary</Text>
-        <Text style={styles.label}>🏠 Hive Name</Text>
-        <TextInput value={name} onChangeText={setName} placeholder="e.g. North Yard Hive" placeholderTextColor={T.textMuted} style={styles.input} />
-        <Text style={styles.label}>📍 Location</Text>
-        <TextInput value={location} onChangeText={setLocation} placeholder="e.g. Back field, near the oak tree" placeholderTextColor={T.textMuted} style={styles.input} />
-        <Text style={styles.label}>📝 Notes</Text>
-        <TextInput value={notes} onChangeText={setNotes} placeholder="Optional notes about this hive" placeholderTextColor={T.textMuted} style={[styles.input, styles.notesInput]} multiline />
-        <Pressable onPress={handleSave} style={[styles.saveButton, saving && styles.disabledButton]} disabled={saving}>
-          <Text style={styles.saveText}>{saving ? "Saving..." : "Save Hive"}</Text>
+      <ScrollView contentContainerStyle={S.content}>
+        <Text style={S.title}>New Hive</Text>
+        <Text style={S.subtitle}>Add a hive to your apiary</Text>
+        <Text style={S.label}>🏠 Hive Name</Text>
+        <TextInput value={name} onChangeText={setName} placeholder="e.g. North Yard Hive" placeholderTextColor={theme.textMuted} style={S.input} />
+        <Text style={S.label}>📍 Location</Text>
+        <TextInput value={location} onChangeText={setLocation} placeholder="e.g. Back field, near the oak tree" placeholderTextColor={theme.textMuted} style={S.input} />
+        <Text style={S.label}>📝 Notes</Text>
+        <TextInput value={notes} onChangeText={setNotes} placeholder="Optional notes about this hive" placeholderTextColor={theme.textMuted} style={[S.input, S.notesInput]} multiline />
+        <Pressable onPress={handleSave} style={[S.saveButton, saving && S.disabledButton]} disabled={saving}>
+          <Text style={S.saveText}>{saving ? "Saving..." : "Save Hive"}</Text>
         </Pressable>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: T.bg },
-  content: { padding: T.spaceMD, paddingBottom: 50 },
-  title: { color: T.textPrimary, fontSize: T.fontLG, fontWeight: "900", marginBottom: 4 },
-  subtitle: { color: T.textMuted, fontSize: T.fontSM, marginBottom: T.spaceLG },
-  label: { color: T.textSecondary, fontSize: T.fontSM, fontWeight: "700", marginTop: T.spaceMD, marginBottom: 8 },
-  input: { backgroundColor: T.bgInput, color: T.textPrimary, padding: 14, borderRadius: T.radiusMD, fontSize: T.fontMD, borderWidth: 1, borderColor: T.border },
-  notesInput: { minHeight: 110, textAlignVertical: "top" },
-  saveButton: { backgroundColor: T.green, padding: 16, borderRadius: T.radiusMD, alignItems: "center", marginTop: T.spaceLG },
-  disabledButton: { backgroundColor: T.textMuted },
-  saveText: { color: "#fff", fontWeight: "900", fontSize: T.fontMD },
-});
+function makeStyles(theme: ReturnType<typeof useAppTheme>) {
+  return StyleSheet.create({
+    page: { flex: 1, backgroundColor: theme.bg },
+    content: { padding: theme.spaceMD, paddingBottom: 50 },
+    title: { color: theme.textPrimary, fontSize: theme.fontLG, fontWeight: "900", marginBottom: 4 },
+    subtitle: { color: theme.textMuted, fontSize: theme.fontSM, marginBottom: theme.spaceLG },
+    label: { color: theme.textSecondary, fontSize: theme.fontSM, fontWeight: "700", marginTop: theme.spaceMD, marginBottom: 8 },
+    input: { backgroundColor: theme.bgInput, color: theme.textPrimary, padding: 14, borderRadius: theme.radiusMD, fontSize: theme.fontMD, borderWidth: 1, borderColor: theme.border },
+    notesInput: { minHeight: 110, textAlignVertical: "top" },
+    saveButton: { backgroundColor: theme.green, padding: 16, borderRadius: theme.radiusMD, alignItems: "center", marginTop: theme.spaceLG },
+    disabledButton: { backgroundColor: theme.textMuted },
+    saveText: { color: "#fff", fontWeight: "900", fontSize: theme.fontMD },
+  });
+}

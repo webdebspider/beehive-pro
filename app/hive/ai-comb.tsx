@@ -2,8 +2,6 @@
  * app/hive/ai-comb.tsx
  *
  * AI Comb Review Screen — analyzes a comb photo using the Anthropic API.
- * Requires EXPO_PUBLIC_ANTHROPIC_API_KEY in .env
- * TODO: Move API call to backend proxy before public release.
  */
 
 import * as FileSystem from "expo-file-system";
@@ -11,10 +9,11 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
 import { Image, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 import NavBar from "../../components/NavBar";
-import { T } from "../../utils/theme";
+import { useAppTheme } from "../../hooks/useAppTheme";
 
 export default function AiCombScreen() {
   const router = useRouter();
+  const theme = useAppTheme();
   const { uri } = useLocalSearchParams<{ uri?: string }>();
   const photoUri = uri ? String(uri) : "";
   const [analyzing, setAnalyzing] = useState(false);
@@ -51,45 +50,49 @@ export default function AiCombScreen() {
     }
   };
 
+  const S = makeStyles(theme);
+
   return (
-    <SafeAreaView style={styles.page}>
+    <SafeAreaView style={S.page}>
       <NavBar />
-      <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.title}>🔬 AI Comb Review</Text>
-        <Text style={styles.subtitle}>Identifies eggs, larvae, brood, pollen, honey, and warning signs</Text>
+      <ScrollView contentContainerStyle={S.content}>
+        <Text style={S.title}>🔬 AI Comb Review</Text>
+        <Text style={S.subtitle}>Identifies eggs, larvae, brood, pollen, honey, and warning signs</Text>
         {photoUri ? (
-          <Image source={{ uri: photoUri }} style={styles.photo} resizeMode="contain" />
+          <Image source={{ uri: photoUri }} style={S.photo} resizeMode="contain" />
         ) : (
-          <View style={styles.emptyBox}>
-            <Text style={styles.emptyEmoji}>📷</Text>
-            <Text style={styles.emptyText}>No photo selected</Text>
+          <View style={S.emptyBox}>
+            <Text style={S.emptyEmoji}>📷</Text>
+            <Text style={S.emptyText}>No photo selected</Text>
           </View>
         )}
-        <Pressable onPress={analyzePhoto} disabled={!photoUri || analyzing} style={[styles.analyzeButton, (!photoUri || analyzing) && styles.disabledButton]}>
-          <Text style={styles.analyzeText}>{analyzing ? "Analyzing... 🐝" : "Analyze Comb"}</Text>
+        <Pressable onPress={analyzePhoto} disabled={!photoUri || analyzing} style={[S.analyzeButton, (!photoUri || analyzing) && S.disabledButton]}>
+          <Text style={S.analyzeText}>{analyzing ? "Analyzing... 🐝" : "Analyze Comb"}</Text>
         </Pressable>
-        {error ? <View style={styles.errorBox}><Text style={styles.errorText}>{error}</Text></View> : null}
-        {result ? <View style={styles.resultBox}><Text style={styles.resultTitle}>🔍 Review Result</Text><Text style={styles.resultText}>{result}</Text></View> : null}
+        {error ? <View style={S.errorBox}><Text style={S.errorText}>{error}</Text></View> : null}
+        {result ? <View style={S.resultBox}><Text style={S.resultTitle}>🔍 Review Result</Text><Text style={S.resultText}>{result}</Text></View> : null}
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: T.bg },
-  content: { padding: T.spaceMD, paddingBottom: 50 },
-  title: { color: T.textPrimary, fontSize: T.fontLG, fontWeight: "900", marginBottom: 4 },
-  subtitle: { color: T.textMuted, fontSize: T.fontSM, marginBottom: T.spaceMD, lineHeight: 20 },
-  photo: { width: "100%", height: 320, backgroundColor: T.bgCard, borderRadius: T.radiusLG, borderWidth: 1, borderColor: T.border },
-  emptyBox: { height: 200, backgroundColor: T.bgCard, borderRadius: T.radiusLG, justifyContent: "center", alignItems: "center", borderWidth: 1, borderColor: T.border },
-  emptyEmoji: { fontSize: 40, marginBottom: 8 },
-  emptyText: { color: T.textMuted, fontSize: T.fontSM },
-  analyzeButton: { backgroundColor: T.honey, padding: 16, borderRadius: T.radiusMD, alignItems: "center", marginTop: T.spaceMD },
-  disabledButton: { backgroundColor: T.textMuted },
-  analyzeText: { color: T.bg, fontWeight: "900", fontSize: T.fontMD },
-  errorBox: { backgroundColor: T.dangerBg, padding: T.spaceMD, borderRadius: T.radiusMD, marginTop: T.spaceMD, borderWidth: 1, borderColor: T.danger },
-  errorText: { color: "#fca5a5", lineHeight: 20 },
-  resultBox: { backgroundColor: T.bgCard, padding: T.spaceMD, borderRadius: T.radiusLG, marginTop: T.spaceMD, borderWidth: 1, borderColor: T.border },
-  resultTitle: { color: T.honey, fontWeight: "900", marginBottom: 10, fontSize: T.fontMD },
-  resultText: { color: T.textSecondary, lineHeight: 22, fontSize: T.fontSM },
-});
+function makeStyles(theme: ReturnType<typeof useAppTheme>) {
+  return StyleSheet.create({
+    page: { flex: 1, backgroundColor: theme.bg },
+    content: { padding: theme.spaceMD, paddingBottom: 50 },
+    title: { color: theme.textPrimary, fontSize: theme.fontLG, fontWeight: "900", marginBottom: 4 },
+    subtitle: { color: theme.textMuted, fontSize: theme.fontSM, marginBottom: theme.spaceMD, lineHeight: 20 },
+    photo: { width: "100%", height: 320, backgroundColor: theme.bgCard, borderRadius: theme.radiusLG, borderWidth: 1, borderColor: theme.border },
+    emptyBox: { height: 200, backgroundColor: theme.bgCard, borderRadius: theme.radiusLG, justifyContent: "center", alignItems: "center", borderWidth: 1, borderColor: theme.border },
+    emptyEmoji: { fontSize: 40, marginBottom: 8 },
+    emptyText: { color: theme.textMuted, fontSize: theme.fontSM },
+    analyzeButton: { backgroundColor: theme.honey, padding: 16, borderRadius: theme.radiusMD, alignItems: "center", marginTop: theme.spaceMD },
+    disabledButton: { backgroundColor: theme.textMuted },
+    analyzeText: { color: theme.bg, fontWeight: "900", fontSize: theme.fontMD },
+    errorBox: { backgroundColor: theme.dangerBg, padding: theme.spaceMD, borderRadius: theme.radiusMD, marginTop: theme.spaceMD, borderWidth: 1, borderColor: theme.danger },
+    errorText: { color: "#fca5a5", lineHeight: 20 },
+    resultBox: { backgroundColor: theme.bgCard, padding: theme.spaceMD, borderRadius: theme.radiusLG, marginTop: theme.spaceMD, borderWidth: 1, borderColor: theme.border },
+    resultTitle: { color: theme.honey, fontWeight: "900", marginBottom: 10, fontSize: theme.fontMD },
+    resultText: { color: theme.textSecondary, lineHeight: 22, fontSize: theme.fontSM },
+  });
+}

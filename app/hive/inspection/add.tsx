@@ -2,7 +2,6 @@
  * app/hive/inspection/add.tsx
  *
  * Add Inspection Screen — creates a new inspection for a hive.
- * Firestore doc created first, then photos uploaded separately.
  */
 
 import * as ImagePicker from "expo-image-picker";
@@ -11,17 +10,20 @@ import { addDoc, collection, serverTimestamp, updateDoc } from "firebase/firesto
 import { useState } from "react";
 import { Alert, Image, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import NavBar from "../../../components/NavBar";
+import { useAppTheme } from "../../../hooks/useAppTheme";
 import { db } from "../../../utils/firebase";
-import { T } from "../../../utils/theme";
 import { uploadInspectionPhotos } from "../../../utils/uploadInspectionPhotos";
 
 export default function AddInspectionScreen() {
   const router = useRouter();
-  const { id } = useLocalSearchParams<{ id?: string }>();
+  const theme = useAppTheme();
+  const { id, queen: initialQueen, brood: initialBrood, notes: initialNotes } = useLocalSearchParams<{
+    id?: string; queen?: string; brood?: string; notes?: string;
+  }>();
   const hiveId = id ? String(id) : "";
-  const [queen, setQueen] = useState("");
-  const [brood, setBrood] = useState("");
-  const [notes, setNotes] = useState("");
+  const [queen, setQueen] = useState(initialQueen ? String(initialQueen) : "");
+  const [brood, setBrood] = useState(initialBrood ? String(initialBrood) : "");
+  const [notes, setNotes] = useState(initialNotes ? String(initialNotes) : "");
   const [photoUris, setPhotoUris] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
 
@@ -53,56 +55,60 @@ export default function AddInspectionScreen() {
     }
   };
 
+  const S = makeStyles(theme);
+
   return (
-    <SafeAreaView style={styles.page}>
+    <SafeAreaView style={S.page}>
       <NavBar />
-      <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.title}>New Inspection</Text>
-        <Text style={styles.subtitle}>Record what you observe in the hive today</Text>
-        <Text style={styles.label}>👑 Queen Status</Text>
-        <TextInput placeholder="e.g. seen, eggs present, not found" placeholderTextColor={T.textMuted} value={queen} onChangeText={setQueen} style={styles.input} />
-        <Text style={styles.label}>🐛 Brood Pattern</Text>
-        <TextInput placeholder="e.g. strong, weak, spotty" placeholderTextColor={T.textMuted} value={brood} onChangeText={setBrood} style={styles.input} />
-        <Text style={styles.label}>📝 Notes</Text>
-        <TextInput placeholder="Observations, concerns, treatments..." placeholderTextColor={T.textMuted} value={notes} onChangeText={setNotes} multiline style={[styles.input, styles.notesInput]} />
-        <Text style={styles.label}>📷 Photos</Text>
-        <View style={styles.photoButtons}>
-          <Pressable onPress={takePhoto} style={styles.photoButton}><Text style={styles.photoButtonText}>📷 Camera</Text></Pressable>
-          <Pressable onPress={pickPhoto} style={styles.photoButton}><Text style={styles.photoButtonText}>🖼️ Gallery</Text></Pressable>
+      <ScrollView contentContainerStyle={S.content}>
+        <Text style={S.title}>New Inspection</Text>
+        <Text style={S.subtitle}>Record what you observe in the hive today</Text>
+        <Text style={S.label}>👑 Queen Status</Text>
+        <TextInput placeholder="e.g. seen, eggs present, not found" placeholderTextColor={theme.textMuted} value={queen} onChangeText={setQueen} style={S.input} />
+        <Text style={S.label}>🐛 Brood Pattern</Text>
+        <TextInput placeholder="e.g. strong, weak, spotty" placeholderTextColor={theme.textMuted} value={brood} onChangeText={setBrood} style={S.input} />
+        <Text style={S.label}>📝 Notes</Text>
+        <TextInput placeholder="Observations, concerns, treatments..." placeholderTextColor={theme.textMuted} value={notes} onChangeText={setNotes} multiline style={[S.input, S.notesInput]} />
+        <Text style={S.label}>📷 Photos</Text>
+        <View style={S.photoButtons}>
+          <Pressable onPress={takePhoto} style={S.photoButton}><Text style={S.photoButtonText}>📷 Camera</Text></Pressable>
+          <Pressable onPress={pickPhoto} style={S.photoButton}><Text style={S.photoButtonText}>🖼️ Gallery</Text></Pressable>
         </View>
         {photoUris.length > 0 && (
-          <View style={styles.photoGrid}>
+          <View style={S.photoGrid}>
             {photoUris.map((uri) => (
               <Pressable key={uri} onPress={() => removePhoto(uri)}>
-                <Image source={{ uri }} style={styles.preview} />
-                <Text style={styles.removeText}>Tap to remove</Text>
+                <Image source={{ uri }} style={S.preview} />
+                <Text style={S.removeText}>Tap to remove</Text>
               </Pressable>
             ))}
           </View>
         )}
-        <Pressable onPress={handleSave} disabled={saving} style={[styles.saveButton, saving && styles.disabledButton]}>
-          <Text style={styles.saveText}>{saving ? "Saving..." : "Save Inspection"}</Text>
+        <Pressable onPress={handleSave} disabled={saving} style={[S.saveButton, saving && S.disabledButton]}>
+          <Text style={S.saveText}>{saving ? "Saving..." : "Save Inspection"}</Text>
         </Pressable>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: T.bg },
-  content: { padding: T.spaceMD, paddingBottom: 50 },
-  title: { color: T.textPrimary, fontSize: T.fontLG, fontWeight: "900", marginBottom: 4 },
-  subtitle: { color: T.textMuted, fontSize: T.fontSM, marginBottom: T.spaceLG },
-  label: { color: T.textSecondary, fontSize: T.fontSM, fontWeight: "700", marginTop: T.spaceMD, marginBottom: 8 },
-  input: { backgroundColor: T.bgInput, color: T.textPrimary, padding: 14, borderRadius: T.radiusMD, fontSize: T.fontMD, borderWidth: 1, borderColor: T.border },
-  notesInput: { minHeight: 110, textAlignVertical: "top" },
-  photoButtons: { flexDirection: "row", gap: 10 },
-  photoButton: { flex: 1, backgroundColor: T.bgCardAlt, padding: 14, borderRadius: T.radiusMD, alignItems: "center", borderWidth: 1, borderColor: T.border },
-  photoButtonText: { color: T.textPrimary, fontWeight: "800", fontSize: T.fontSM },
-  photoGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: T.spaceMD },
-  preview: { width: 100, height: 100, borderRadius: T.radiusSM },
-  removeText: { color: T.danger, fontSize: T.fontXS, marginTop: 4, textAlign: "center" },
-  saveButton: { backgroundColor: T.green, padding: 16, borderRadius: T.radiusMD, alignItems: "center", marginTop: T.spaceLG },
-  disabledButton: { backgroundColor: T.textMuted },
-  saveText: { color: "#fff", fontWeight: "900", fontSize: T.fontMD },
-});
+function makeStyles(theme: ReturnType<typeof useAppTheme>) {
+  return StyleSheet.create({
+    page: { flex: 1, backgroundColor: theme.bg },
+    content: { padding: theme.spaceMD, paddingBottom: 50 },
+    title: { color: theme.textPrimary, fontSize: theme.fontLG, fontWeight: "900", marginBottom: 4 },
+    subtitle: { color: theme.textMuted, fontSize: theme.fontSM, marginBottom: theme.spaceLG },
+    label: { color: theme.textSecondary, fontSize: theme.fontSM, fontWeight: "700", marginTop: theme.spaceMD, marginBottom: 8 },
+    input: { backgroundColor: theme.bgInput, color: theme.textPrimary, padding: 14, borderRadius: theme.radiusMD, fontSize: theme.fontMD, borderWidth: 1, borderColor: theme.border },
+    notesInput: { minHeight: 110, textAlignVertical: "top" },
+    photoButtons: { flexDirection: "row", gap: 10 },
+    photoButton: { flex: 1, backgroundColor: theme.bgCardAlt, padding: 14, borderRadius: theme.radiusMD, alignItems: "center", borderWidth: 1, borderColor: theme.border },
+    photoButtonText: { color: theme.textPrimary, fontWeight: "800", fontSize: theme.fontSM },
+    photoGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: theme.spaceMD },
+    preview: { width: 100, height: 100, borderRadius: theme.radiusSM },
+    removeText: { color: theme.danger, fontSize: theme.fontXS, marginTop: 4, textAlign: "center" },
+    saveButton: { backgroundColor: theme.green, padding: 16, borderRadius: theme.radiusMD, alignItems: "center", marginTop: theme.spaceLG },
+    disabledButton: { backgroundColor: theme.textMuted },
+    saveText: { color: "#fff", fontWeight: "900", fontSize: theme.fontMD },
+  });
+}

@@ -1,59 +1,50 @@
 /**
  * app/alerts.tsx
  *
- * Alerts Screen — shows hive health alerts generated from inspection scores.
- * Critical alerts (score < 70) shown in red, warnings (score < 85) in amber.
- * Loads from AsyncStorage via utils/storage.ts
+ * Alerts Screen — shows hive health alerts.
  */
 
 import { useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { FlatList, SafeAreaView, StyleSheet, Text, View } from "react-native";
 import NavBar from "../components/NavBar";
+import { useAppTheme } from "../hooks/useAppTheme";
 import { getAlerts } from "../utils/storage";
-import { T } from "../utils/theme";
 
 export default function Alerts() {
+  const theme = useAppTheme();
   const [alerts, setAlerts] = useState<any[]>([]);
 
-  useFocusEffect(
-    useCallback(() => {
-      getAlerts().then(setAlerts);
-    }, [])
-  );
+  useFocusEffect(useCallback(() => { getAlerts().then(setAlerts); }, []));
+
+  const S = makeStyles(theme);
 
   return (
-    <SafeAreaView style={styles.page}>
+    <SafeAreaView style={S.page}>
       <NavBar />
-      <View style={styles.content}>
-        <Text style={styles.title}>🚨 Alerts</Text>
-        <Text style={styles.subtitle}>
-          {alerts.length === 0
-            ? "All hives looking good"
-            : `${alerts.length} alert${alerts.length === 1 ? "" : "s"} need attention`}
-        </Text>
-
+      <View style={S.content}>
+        <Text style={S.title}>🚨 Alerts</Text>
+        <Text style={S.subtitle}>{alerts.length === 0 ? "All hives looking good" : `${alerts.length} alert${alerts.length === 1 ? "" : "s"} need attention`}</Text>
         {alerts.length === 0 && (
-          <View style={styles.emptyBox}>
-            <Text style={styles.emptyEmoji}>✅</Text>
-            <Text style={styles.emptyText}>No alerts right now</Text>
-            <Text style={styles.emptyHint}>Your hives are all in good shape!</Text>
+          <View style={S.emptyBox}>
+            <Text style={S.emptyEmoji}>✅</Text>
+            <Text style={S.emptyText}>No alerts right now</Text>
+            <Text style={S.emptyHint}>Your hives are all in good shape!</Text>
           </View>
         )}
-
         <FlatList
           data={alerts}
           keyExtractor={(i) => i.id}
           renderItem={({ item }) => (
-            <View style={[styles.alertCard, item.type === "critical" ? styles.alertCritical : styles.alertWarning]}>
-              <View style={styles.alertHeader}>
-                <Text style={styles.alertIcon}>{item.type === "critical" ? "🔴" : "⚠️"}</Text>
+            <View style={[S.alertCard, item.type === "critical" ? S.alertCritical : S.alertWarning]}>
+              <View style={S.alertHeader}>
+                <Text style={S.alertIcon}>{item.type === "critical" ? "🔴" : "⚠️"}</Text>
                 <View>
-                  <Text style={styles.alertHive}>Hive {item.hiveId}</Text>
-                  <Text style={styles.alertType}>{item.type === "critical" ? "Critical" : "Warning"}</Text>
+                  <Text style={S.alertHive}>Hive {item.hiveId}</Text>
+                  <Text style={S.alertType}>{item.type === "critical" ? "Critical" : "Warning"}</Text>
                 </View>
-                <View style={[styles.scoreBadge, { backgroundColor: item.type === "critical" ? T.danger : T.warning }]}>
-                  <Text style={styles.scoreText}>{item.score}</Text>
+                <View style={[S.scoreBadge, { backgroundColor: item.type === "critical" ? theme.danger : theme.warning }]}>
+                  <Text style={S.scoreText}>{item.score}</Text>
                 </View>
               </View>
             </View>
@@ -64,22 +55,24 @@ export default function Alerts() {
   );
 }
 
-const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: T.bg },
-  content: { padding: T.spaceMD, flex: 1 },
-  title: { color: T.textPrimary, fontSize: T.fontLG, fontWeight: "900", marginBottom: 4 },
-  subtitle: { color: T.textMuted, fontSize: T.fontSM, marginBottom: T.spaceLG },
-  emptyBox: { alignItems: "center", marginTop: 60 },
-  emptyEmoji: { fontSize: 48, marginBottom: 12 },
-  emptyText: { color: T.textPrimary, fontSize: T.fontMD, fontWeight: "800" },
-  emptyHint: { color: T.textMuted, fontSize: T.fontSM, marginTop: 6 },
-  alertCard: { padding: T.spaceMD, borderRadius: T.radiusMD, marginBottom: 10, borderWidth: 1 },
-  alertCritical: { backgroundColor: T.dangerBg, borderColor: T.danger },
-  alertWarning: { backgroundColor: T.warningBg, borderColor: T.warning },
-  alertHeader: { flexDirection: "row", alignItems: "center", gap: 12 },
-  alertIcon: { fontSize: 24 },
-  alertHive: { color: T.textPrimary, fontWeight: "900", fontSize: T.fontMD },
-  alertType: { color: T.textSecondary, fontSize: T.fontXS, marginTop: 2 },
-  scoreBadge: { marginLeft: "auto", width: 44, height: 44, borderRadius: 22, justifyContent: "center", alignItems: "center" },
-  scoreText: { color: "#fff", fontWeight: "900", fontSize: T.fontSM },
-});
+function makeStyles(theme: ReturnType<typeof useAppTheme>) {
+  return StyleSheet.create({
+    page: { flex: 1, backgroundColor: theme.bg },
+    content: { padding: theme.spaceMD, flex: 1 },
+    title: { color: theme.textPrimary, fontSize: theme.fontLG, fontWeight: "900", marginBottom: 4 },
+    subtitle: { color: theme.textMuted, fontSize: theme.fontSM, marginBottom: theme.spaceLG },
+    emptyBox: { alignItems: "center", marginTop: 60 },
+    emptyEmoji: { fontSize: 48, marginBottom: 12 },
+    emptyText: { color: theme.textPrimary, fontSize: theme.fontMD, fontWeight: "800" },
+    emptyHint: { color: theme.textMuted, fontSize: theme.fontSM, marginTop: 6 },
+    alertCard: { padding: theme.spaceMD, borderRadius: theme.radiusMD, marginBottom: 10, borderWidth: 1 },
+    alertCritical: { backgroundColor: theme.dangerBg, borderColor: theme.danger },
+    alertWarning: { backgroundColor: theme.warningBg, borderColor: theme.warning },
+    alertHeader: { flexDirection: "row", alignItems: "center", gap: 12 },
+    alertIcon: { fontSize: 24 },
+    alertHive: { color: theme.textPrimary, fontWeight: "900", fontSize: theme.fontMD },
+    alertType: { color: theme.textSecondary, fontSize: theme.fontXS, marginTop: 2 },
+    scoreBadge: { marginLeft: "auto", width: 44, height: 44, borderRadius: 22, justifyContent: "center", alignItems: "center" },
+    scoreText: { color: "#fff", fontWeight: "900", fontSize: theme.fontSM },
+  });
+}
