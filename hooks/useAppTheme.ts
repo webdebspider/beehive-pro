@@ -83,7 +83,7 @@ const STATIC = {
   danger:    "#dc2626",
   dangerBg:  "#450a0a",
   warning:   "#d97706",
-  warningBg: "#451a03",
+  warningBg: "#78350f",
   spaceSM:  8,
   spaceMD:  16,
   spaceLG:  24,
