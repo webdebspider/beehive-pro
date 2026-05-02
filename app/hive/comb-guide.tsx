@@ -2,12 +2,33 @@
  * app/hive/comb-guide.tsx
  *
  * Comb Guide Screen — multi-select field guide with beginner learning sections.
+ *
+ * Beginner mode features:
+ *  - Cards pulse/glow with amber animation hinting at expandable content
+ *  - Cards auto-expand as user scrolls to them
+ *  - "Learning mode on" badge shown at top
+ *  - Content collapses when scrolled past
+ *
+ * Pro/Minimal mode:
+ *  - No pulse, no auto-expand
+ *  - Plain tap-to-expand behavior
  */
 
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useState } from "react";
-import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useRef, useState } from "react";
+import {
+  Animated,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  Pressable,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import NavBar from "../../components/NavBar";
+import { useSettingsContext } from "../../context/SettingsContext";
 import { useAppTheme } from "../../hooks/useAppTheme";
 
 type Finding = {
@@ -24,16 +45,54 @@ const FINDINGS: Finding[] = [
   { id: "brood", emoji: "🟫", title: "Capped Brood", description: "Darker capped cells in a solid pattern. Good pattern means healthy development.", combFinding: "Capped brood seen", brood: "strong", whatToLookFor: "Look for cells with slightly domed tan or brown wax caps. A healthy brood pattern is solid and compact — like a full sheet of caps with very few gaps.", whereToLook: "Capped brood fills the center of the frame in a roughly oval pattern.", commonMistake: "A few scattered empty cells in the brood pattern is normal. But if more than 1 in 10 cells are skipped, that may indicate a health issue." },
   { id: "spotty", emoji: "⚠️", title: "Spotty Brood", description: "Patchy pattern with skipped cells. Watch queen health and colony condition.", combFinding: "Spotty brood seen", brood: "spotty", whatToLookFor: "Look for a brood pattern that has many random empty cells scattered throughout — like swiss cheese. Some caps may look sunken in or discolored.", whereToLook: "Compare the center of the brood frame to what you'd expect. A sparse or patchy pattern is the key sign.", commonMistake: "A brand new queen just starting to lay will have a spotty pattern that fills in — this is normal. Spotty brood in an established colony is more concerning." },
   { id: "queencells", emoji: "👑", title: "Queen Cells", description: "Larger peanut-shaped cells. May indicate swarming, supersedure, or queen replacement.", combFinding: "Queen cells seen", queen: "cells", whatToLookFor: "Look for large peanut or acorn-shaped cells that hang vertically. They are much larger than regular cells — about 2-3cm long.", whereToLook: "Swarm cells are usually found on the bottom edges of frames. Supersedure cells are usually found in the middle of the frame face.", commonMistake: "Play cups (empty queen cups) are very common and do NOT mean the colony is about to swarm. Only cells containing an egg or larva are cause for action." },
-  { id: "mentor", emoji: "❓", title: "Unsure / Need Mentor", description: "Use this when you're not confident what you're seeing. Marks the report for review.", combFinding: "Needs mentor review", notes: "Comb finding needs mentor review.", whatToLookFor: "Sometimes what you see doesn't match any description — and that's completely normal for new beekeepers! Common confusing things include chalk-like white lumps, dark sunken caps, unusual smells, or general uncertainty.", whereToLook: "When in doubt, note where on the frame you saw it, the color, texture, and smell if any.", commonMistake: "Never hesitate to mark something for mentor review. Catching a potential problem early is always better than waiting until you're sure." },
+  { id: "mentor", emoji: "❓", title: "Unsure / Need Mentor", description: "Use this when you're not confident what you're seeing. Marks the report for review.", combFinding: "Needs mentor review", notes: "Comb finding needs mentor review.", whatToLookFor: "Sometimes what you see doesn't match any description — and that's completely normal for new beekeepers! Common confusing things include chalk-like white lumps, dark sunken caps, or unusual smells.", whereToLook: "When in doubt, note where on the frame you saw it, the color, texture, and smell if any.", commonMistake: "Never hesitate to mark something for mentor review. Catching a potential problem early is always better than waiting until you're sure." },
 ];
 
 export default function CombGuideScreen() {
   const router = useRouter();
   const theme = useAppTheme();
+  const { settings } = useSettingsContext();
+  const isBeginner = settings.appMode === "beginner";
+
   const { id } = useLocalSearchParams<{ id?: string }>();
   const hiveId = id ? String(id) : "";
+
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+
+  // Card layout positions for scroll-based auto-expand
+  const cardPositions = useRef<Record<string, { top: number; bottom: number }>>({});
+  const scrollY = useRef(0);
+
+  // Pulse animations — one per card
+  const pulseAnims = useRef<Record<string, Animated.Value>>(
+    Object.fromEntries(FINDINGS.map((f) => [f.id, new Animated.Value(1)]))
+  ).current;
+
+  // Start pulse loop for a card
+  const startPulse = (id: string) => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnims[id], { toValue: 1.03, duration: 900, useNativeDriver: true }),
+        Animated.timing(pulseAnims[id], { toValue: 1, duration: 900, useNativeDriver: true }),
+      ])
+    ).start();
+  };
+
+  // Stop pulse for a card
+  const stopPulse = (id: string) => {
+    pulseAnims[id].stopAnimation();
+    pulseAnims[id].setValue(1);
+  };
+
+  // Start all pulses on mount in beginner mode
+  const pulsesStarted = useRef(false);
+  if (isBeginner && !pulsesStarted.current) {
+    pulsesStarted.current = true;
+    setTimeout(() => {
+      FINDINGS.forEach((f) => startPulse(f.id));
+    }, 500);
+  }
 
   const toggleFinding = (findingId: string) => {
     setSelected((prev) => {
@@ -47,10 +106,54 @@ export default function CombGuideScreen() {
   const toggleExpanded = (findingId: string) => {
     setExpanded((prev) => {
       const next = new Set(prev);
-      if (next.has(findingId)) next.delete(findingId);
-      else next.add(findingId);
+      if (next.has(findingId)) {
+        next.delete(findingId);
+        if (isBeginner) startPulse(findingId);
+      } else {
+        next.add(findingId);
+        if (isBeginner) stopPulse(findingId);
+      }
       return next;
     });
+  };
+
+  /**
+   * On scroll, check which card is centered in the viewport.
+   * In beginner mode, auto-expand that card and collapse others.
+   */
+  const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    if (!isBeginner) return;
+
+    const y = e.nativeEvent.contentOffset.y;
+    const viewHeight = e.nativeEvent.layoutMeasurement.height;
+    scrollY.current = y;
+
+    // Center of current viewport
+    const viewCenter = y + viewHeight * 0.4;
+
+    let activeId: string | null = null;
+    for (const [id, pos] of Object.entries(cardPositions.current)) {
+      if (viewCenter >= pos.top && viewCenter <= pos.bottom) {
+        activeId = id;
+        break;
+      }
+    }
+
+    if (activeId) {
+      setExpanded((prev) => {
+        const next = new Set<string>();
+        // Only expand the active card
+        if (!prev.has(activeId!)) {
+          next.add(activeId!);
+          stopPulse(activeId!);
+          // Restart pulse on cards that collapse
+          prev.forEach((id) => { if (id !== activeId) startPulse(id); });
+        } else {
+          next.add(activeId!);
+        }
+        return next;
+      });
+    }
   };
 
   const handleSubmit = () => {
@@ -71,10 +174,26 @@ export default function CombGuideScreen() {
   return (
     <SafeAreaView style={S.page}>
       <NavBar />
-      <ScrollView contentContainerStyle={S.content}>
+      <ScrollView
+        contentContainerStyle={S.content}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
+      >
         <Text style={S.title}>🔍 Comb Guide</Text>
-        <Text style={S.subtitle}>Tap everything you see. Tap "What am I looking at?" to learn how to identify it.</Text>
+        <Text style={S.subtitle}>
+          Tap everything you see. Tap "What am I looking at?" to learn how to identify it.
+        </Text>
 
+        {/* Beginner mode badge */}
+        {isBeginner && (
+          <View style={S.learningBadge}>
+            <Text style={S.learningBadgeText}>
+              🌱 Learning mode — scroll through to explore each finding
+            </Text>
+          </View>
+        )}
+
+        {/* Selection count banner */}
         {selected.size > 0 && (
           <View style={S.selectionBanner}>
             <Text style={S.selectionText}>{selected.size} finding{selected.size === 1 ? "" : "s"} selected</Text>
@@ -84,50 +203,86 @@ export default function CombGuideScreen() {
           </View>
         )}
 
+        {/* Finding cards */}
         {FINDINGS.map((finding) => {
           const isSelected = selected.has(finding.id);
           const isExpanded = expanded.has(finding.id);
+
           return (
-            <View key={finding.id} style={[S.card, isSelected && S.cardSelected]}>
-              <Pressable onPress={() => toggleFinding(finding.id)}>
-                <View style={S.cardHeader}>
-                  <Text style={S.cardEmoji}>{finding.emoji}</Text>
-                  <Text style={[S.cardTitle, isSelected && S.cardTitleSelected]}>{finding.title}</Text>
-                  {isSelected && <View style={S.checkBadge}><Text style={S.checkText}>✓</Text></View>}
-                </View>
-                <Text style={S.cardText}>{finding.description}</Text>
-                <Text style={S.tapHint}>{isSelected ? "✓ Selected — tap to deselect" : "Tap to select"}</Text>
-              </Pressable>
-
-              <View style={S.divider} />
-
-              <Pressable onPress={() => toggleExpanded(finding.id)} style={S.learnButton}>
-                <Text style={S.learnButtonText}>{isExpanded ? "▼ Hide guide" : "👁 What am I looking at?"}</Text>
-              </Pressable>
-
-              {isExpanded && (
-                <View style={S.learnContent}>
-                  <View style={S.learnSection}>
-                    <Text style={S.learnSectionTitle}>🔎 What to look for</Text>
-                    <Text style={S.learnSectionText}>{finding.whatToLookFor}</Text>
+            <Animated.View
+              key={finding.id}
+              style={[
+                S.cardWrapper,
+                isBeginner && !isExpanded && {
+                  transform: [{ scale: pulseAnims[finding.id] }],
+                  shadowColor: theme.honey,
+                  shadowOpacity: 0.4,
+                  shadowRadius: 12,
+                  shadowOffset: { width: 0, height: 0 },
+                  elevation: 6,
+                },
+              ]}
+              onLayout={(e) => {
+                const { y, height } = e.nativeEvent.layout;
+                cardPositions.current[finding.id] = { top: y, bottom: y + height };
+              }}
+            >
+              <View style={[S.card, isSelected && S.cardSelected, isExpanded && isBeginner && S.cardActive]}>
+                {/* Main tap area */}
+                <Pressable onPress={() => toggleFinding(finding.id)}>
+                  <View style={S.cardHeader}>
+                    <Text style={S.cardEmoji}>{finding.emoji}</Text>
+                    <Text style={[S.cardTitle, isSelected && S.cardTitleSelected]}>{finding.title}</Text>
+                    {isSelected && <View style={S.checkBadge}><Text style={S.checkText}>✓</Text></View>}
                   </View>
-                  <View style={S.learnSection}>
-                    <Text style={S.learnSectionTitle}>📍 Where to look</Text>
-                    <Text style={S.learnSectionText}>{finding.whereToLook}</Text>
-                  </View>
-                  {finding.commonMistake && (
-                    <View style={[S.learnSection, S.mistakeSection]}>
-                      <Text style={S.learnSectionTitle}>⚠️ Common mistake</Text>
-                      <Text style={S.learnSectionText}>{finding.commonMistake}</Text>
+                  <Text style={S.cardText}>{finding.description}</Text>
+                  <Text style={S.tapHint}>{isSelected ? "✓ Selected — tap to deselect" : "Tap to select"}</Text>
+                </Pressable>
+
+                <View style={S.divider} />
+
+                {/* Learn button */}
+                <Pressable onPress={() => toggleExpanded(finding.id)} style={S.learnButton}>
+                  <Text style={S.learnButtonText}>
+                    {isExpanded ? "▼ Hide guide" : "👁 What am I looking at?"}
+                  </Text>
+                  {isBeginner && !isExpanded && (
+                    <View style={S.learnHintBadge}>
+                      <Text style={S.learnHintText}>Tap or scroll</Text>
                     </View>
                   )}
-                </View>
-              )}
-            </View>
+                </Pressable>
+
+                {/* Expanded learn section */}
+                {isExpanded && (
+                  <View style={S.learnContent}>
+                    <View style={S.learnSection}>
+                      <Text style={S.learnSectionTitle}>🔎 What to look for</Text>
+                      <Text style={S.learnSectionText}>{finding.whatToLookFor}</Text>
+                    </View>
+                    <View style={S.learnSection}>
+                      <Text style={S.learnSectionTitle}>📍 Where to look</Text>
+                      <Text style={S.learnSectionText}>{finding.whereToLook}</Text>
+                    </View>
+                    {finding.commonMistake && (
+                      <View style={[S.learnSection, S.mistakeSection]}>
+                        <Text style={S.learnSectionTitle}>⚠️ Common mistake</Text>
+                        <Text style={S.learnSectionText}>{finding.commonMistake}</Text>
+                      </View>
+                    )}
+                  </View>
+                )}
+              </View>
+            </Animated.View>
           );
         })}
 
-        <Pressable onPress={handleSubmit} disabled={selected.size === 0} style={[S.submitButton, selected.size === 0 && S.disabledButton]}>
+        {/* Submit button */}
+        <Pressable
+          onPress={handleSubmit}
+          disabled={selected.size === 0}
+          style={[S.submitButton, selected.size === 0 && S.disabledButton]}
+        >
           <Text style={[S.submitText, selected.size === 0 && S.disabledText]}>
             {selected.size === 0 ? "Select findings above" : `Add ${selected.size} Finding${selected.size === 1 ? "" : "s"} to Inspection →`}
           </Text>
@@ -143,12 +298,32 @@ function makeStyles(theme: ReturnType<typeof useAppTheme>) {
     content: { padding: theme.spaceMD, paddingBottom: 50 },
     title: { color: theme.textPrimary, fontSize: theme.fontLG, fontWeight: "900", marginBottom: 4 },
     subtitle: { color: theme.textMuted, fontSize: theme.fontSM, marginBottom: theme.spaceMD, lineHeight: 20 },
+
+    // Beginner badge
+    learningBadge: {
+      backgroundColor: theme.bgCardAlt,
+      borderWidth: 1,
+      borderColor: theme.honey,
+      padding: theme.spaceSM,
+      borderRadius: theme.radiusMD,
+      marginBottom: theme.spaceMD,
+      alignItems: "center",
+    },
+    learningBadgeText: { color: theme.honey, fontWeight: "800", fontSize: theme.fontXS },
+
+    // Selection banner
     selectionBanner: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", backgroundColor: theme.bgCardAlt, borderWidth: 1, borderColor: theme.honey, padding: theme.spaceMD, borderRadius: theme.radiusMD, marginBottom: theme.spaceMD },
     selectionText: { color: theme.honey, fontWeight: "800", fontSize: theme.fontSM },
     clearButton: { backgroundColor: theme.bgCard, paddingVertical: 6, paddingHorizontal: 12, borderRadius: theme.radiusSM, borderWidth: 1, borderColor: theme.border },
     clearText: { color: theme.textSecondary, fontSize: theme.fontXS, fontWeight: "700" },
-    card: { backgroundColor: theme.bgCard, borderRadius: theme.radiusLG, marginBottom: 12, borderWidth: 2, borderColor: theme.border, overflow: "hidden" },
+
+    // Card wrapper (for pulse animation)
+    cardWrapper: { marginBottom: 12, borderRadius: theme.radiusLG },
+
+    // Cards
+    card: { backgroundColor: theme.bgCard, borderRadius: theme.radiusLG, borderWidth: 2, borderColor: theme.border, overflow: "hidden" },
     cardSelected: { borderColor: theme.honey, backgroundColor: theme.bgCardAlt },
+    cardActive: { borderColor: theme.honeyLight, borderWidth: 2 },
     cardHeader: { flexDirection: "row", alignItems: "center", gap: 10, padding: theme.spaceMD, paddingBottom: 8 },
     cardEmoji: { fontSize: 28 },
     cardTitle: { flex: 1, color: theme.honey, fontSize: theme.fontMD, fontWeight: "900" },
@@ -157,14 +332,23 @@ function makeStyles(theme: ReturnType<typeof useAppTheme>) {
     checkText: { color: theme.bg, fontWeight: "900", fontSize: theme.fontSM },
     cardText: { color: theme.textSecondary, fontSize: theme.fontSM, lineHeight: 20, paddingHorizontal: theme.spaceMD },
     tapHint: { color: theme.textMuted, fontSize: theme.fontXS, fontWeight: "700", paddingHorizontal: theme.spaceMD, paddingBottom: theme.spaceMD, marginTop: 8 },
+
     divider: { height: 1, backgroundColor: theme.border },
-    learnButton: { padding: theme.spaceMD },
+
+    // Learn button
+    learnButton: { padding: theme.spaceMD, flexDirection: "row", alignItems: "center", gap: 10 },
     learnButtonText: { color: theme.honeyLight, fontWeight: "800", fontSize: theme.fontSM },
+    learnHintBadge: { backgroundColor: theme.honey, paddingVertical: 2, paddingHorizontal: 8, borderRadius: 20 },
+    learnHintText: { color: theme.bg, fontSize: theme.fontXS, fontWeight: "800" },
+
+    // Learn content
     learnContent: { backgroundColor: theme.bg, borderTopWidth: 1, borderTopColor: theme.border, padding: theme.spaceMD, gap: 14 },
     learnSection: { gap: 6 },
     learnSectionTitle: { color: theme.textPrimary, fontWeight: "900", fontSize: theme.fontSM },
     learnSectionText: { color: theme.textSecondary, fontSize: theme.fontSM, lineHeight: 22 },
     mistakeSection: { backgroundColor: theme.warningBg, padding: theme.spaceMD, borderRadius: theme.radiusSM, borderWidth: 1, borderColor: theme.warning },
+
+    // Submit
     submitButton: { backgroundColor: theme.honey, padding: 18, borderRadius: theme.radiusMD, alignItems: "center", marginTop: theme.spaceMD },
     disabledButton: { backgroundColor: theme.bgCardAlt, borderWidth: 1, borderColor: theme.border },
     submitText: { color: theme.bg, fontWeight: "900", fontSize: theme.fontMD },
