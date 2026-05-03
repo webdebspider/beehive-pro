@@ -6,6 +6,7 @@
  * UX improvements:
  *  - Enter key moves between fields, submits on last field
  *  - After saving, user chooses to view hive or go home
+ *  - Platform-aware save prompt (Alert on native, confirm on web)
  */
 
 import * as ImagePicker from "expo-image-picker";
@@ -16,6 +17,7 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Platform,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -45,7 +47,6 @@ export default function EditInspectionScreen() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // Refs for field focus management
   const broodRef = useRef<TextInput>(null);
   const notesRef = useRef<TextInput>(null);
 
@@ -86,22 +87,33 @@ export default function EditInspectionScreen() {
   const removePhoto = (uri: string) =>
     setPhotoUris((prev) => prev.filter((p) => p !== uri));
 
-  /** Shows post-save navigation prompt */
+  /** Platform-aware post-save navigation prompt */
   const showSavePrompt = () => {
-    Alert.alert(
-      "Inspection saved! 🐝",
-      "Where would you like to go?",
-      [
-        {
-          text: "View Hive",
-          onPress: () => router.replace({ pathname: "/hive/[id]", params: { id: resolvedHiveId } }),
-        },
-        {
-          text: "Go Home",
-          onPress: () => router.replace("/hive"),
-        },
-      ]
-    );
+    if (Platform.OS === "web") {
+      const goHome = window.confirm(
+        "Inspection saved! 🐝\n\nClick OK to go Home, or Cancel to view the hive."
+      );
+      if (goHome) {
+        router.replace("/hive");
+      } else {
+        router.replace({ pathname: "/hive/[id]", params: { id: resolvedHiveId } });
+      }
+    } else {
+      Alert.alert(
+        "Inspection saved! 🐝",
+        "Where would you like to go?",
+        [
+          {
+            text: "View Hive",
+            onPress: () => router.replace({ pathname: "/hive/[id]", params: { id: resolvedHiveId } }),
+          },
+          {
+            text: "Go Home",
+            onPress: () => router.replace("/hive"),
+          },
+        ]
+      );
+    }
   };
 
   const handleSave = async () => {
@@ -121,6 +133,13 @@ export default function EditInspectionScreen() {
   };
 
   const handleDelete = async () => {
+    if (Platform.OS === "web") {
+      if (window.confirm("Delete this inspection? This cannot be undone.")) {
+        await deleteDoc(doc(db, "hives", resolvedHiveId, "inspections", resolvedInspectionId));
+        router.replace("/hive");
+      }
+      return;
+    }
     Alert.alert("Delete Inspection?", "This cannot be undone.", [
       { text: "Cancel", style: "cancel" },
       {
@@ -151,7 +170,6 @@ export default function EditInspectionScreen() {
         <Text style={S.title}>Edit Inspection</Text>
         <Text style={S.subtitle}>Update your inspection details</Text>
 
-        {/* Queen — moves to Brood on Enter */}
         <Text style={S.label}>👑 Queen Status</Text>
         <TextInput
           value={queen}
@@ -164,7 +182,6 @@ export default function EditInspectionScreen() {
           onSubmitEditing={() => broodRef.current?.focus()}
         />
 
-        {/* Brood — moves to Notes on Enter */}
         <Text style={S.label}>🐛 Brood Pattern</Text>
         <TextInput
           ref={broodRef}
@@ -178,7 +195,6 @@ export default function EditInspectionScreen() {
           onSubmitEditing={() => notesRef.current?.focus()}
         />
 
-        {/* Notes — submits on Enter */}
         <Text style={S.label}>📝 Notes</Text>
         <TextInput
           ref={notesRef}
@@ -192,7 +208,6 @@ export default function EditInspectionScreen() {
           onSubmitEditing={handleSave}
         />
 
-        {/* Photos */}
         <Text style={S.label}>📷 Photos</Text>
         <View style={S.photoButtons}>
           <Pressable style={S.photoButton} onPress={takePhoto}>

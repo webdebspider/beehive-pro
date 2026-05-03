@@ -6,6 +6,7 @@
  * UX improvements:
  *  - Enter key moves between fields, submits on last field
  *  - After saving, user chooses to view hive or go home
+ *  - Platform-aware save prompt (Alert on native, confirm on web)
  */
 
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -40,7 +41,6 @@ export default function EditHiveScreen() {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  // Refs for field focus management
   const locationRef = useRef<TextInput>(null);
   const notesRef = useRef<TextInput>(null);
 
@@ -64,22 +64,33 @@ export default function EditHiveScreen() {
     loadHive();
   }, [hiveId]);
 
-  /** Shows post-save navigation prompt */
+  /** Platform-aware post-save navigation prompt */
   const showSavePrompt = () => {
-    Alert.alert(
-      "Hive saved! 🐝",
-      "Where would you like to go?",
-      [
-        {
-          text: "View Hive",
-          onPress: () => router.replace({ pathname: "/hive/[id]", params: { id: hiveId } }),
-        },
-        {
-          text: "Go Home",
-          onPress: () => router.replace("/hive"),
-        },
-      ]
-    );
+    if (Platform.OS === "web") {
+      const goHome = window.confirm(
+        "Hive saved! 🐝\n\nClick OK to go Home, or Cancel to view the hive."
+      );
+      if (goHome) {
+        router.replace("/hive");
+      } else {
+        router.replace({ pathname: "/hive/[id]", params: { id: hiveId } });
+      }
+    } else {
+      Alert.alert(
+        "Hive saved! 🐝",
+        "Where would you like to go?",
+        [
+          {
+            text: "View Hive",
+            onPress: () => router.replace({ pathname: "/hive/[id]", params: { id: hiveId } }),
+          },
+          {
+            text: "Go Home",
+            onPress: () => router.replace("/hive"),
+          },
+        ]
+      );
+    }
   };
 
   const handleSave = async () => {
@@ -105,7 +116,9 @@ export default function EditHiveScreen() {
     try {
       setDeleting(true);
       const inspSnap = await getDocs(collection(db, "hives", hiveId, "inspections"));
-      await Promise.all(inspSnap.docs.map((d) => deleteDoc(doc(db, "hives", hiveId, "inspections", d.id))));
+      await Promise.all(inspSnap.docs.map((d) =>
+        deleteDoc(doc(db, "hives", hiveId, "inspections", d.id))
+      ));
       await deleteDoc(doc(db, "hives", hiveId));
       router.replace("/hive");
     } catch (e) {
@@ -117,7 +130,9 @@ export default function EditHiveScreen() {
 
   const handleDelete = () => {
     if (Platform.OS === "web") {
-      if (window.confirm("Delete this hive and all its inspections?")) doDelete();
+      if (window.confirm("Delete this hive and all its inspections? This cannot be undone.")) {
+        doDelete();
+      }
       return;
     }
     Alert.alert("Delete hive?", "This cannot be undone.", [
@@ -143,7 +158,6 @@ export default function EditHiveScreen() {
         <Text style={S.title}>Edit Hive</Text>
         <Text style={S.subtitle}>Update hive details</Text>
 
-        {/* Name — moves to Location on Enter */}
         <Text style={S.label}>🏠 Hive Name</Text>
         <TextInput
           value={name}
@@ -156,7 +170,6 @@ export default function EditHiveScreen() {
           onSubmitEditing={() => locationRef.current?.focus()}
         />
 
-        {/* Location — moves to Notes on Enter */}
         <Text style={S.label}>📍 Location</Text>
         <TextInput
           ref={locationRef}
@@ -170,7 +183,6 @@ export default function EditHiveScreen() {
           onSubmitEditing={() => notesRef.current?.focus()}
         />
 
-        {/* Notes — submits on Enter */}
         <Text style={S.label}>📝 Notes</Text>
         <TextInput
           ref={notesRef}

@@ -6,6 +6,7 @@
  * UX improvements:
  *  - Enter key moves between fields, submits on last field
  *  - After saving, user chooses to view hive or go home
+ *  - Platform-aware save prompt (Alert on native, confirm on web)
  *
  * Offline handling:
  *  - Text data saves to Firestore always
@@ -19,6 +20,7 @@ import { useRef, useState } from "react";
 import {
   Alert,
   Image,
+  Platform,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -50,7 +52,6 @@ export default function AddInspectionScreen() {
   const [photoUris, setPhotoUris] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
 
-  // Refs for field focus management
   const broodRef = useRef<TextInput>(null);
   const notesRef = useRef<TextInput>(null);
 
@@ -73,22 +74,33 @@ export default function AddInspectionScreen() {
   const removePhoto = (uri: string) =>
     setPhotoUris((prev) => prev.filter((item) => item !== uri));
 
-  /** Shows post-save navigation prompt */
+  /** Platform-aware post-save navigation prompt */
   const showSavePrompt = () => {
-    Alert.alert(
-      "Inspection saved! 🐝",
-      "Where would you like to go?",
-      [
-        {
-          text: "View Hive",
-          onPress: () => router.replace({ pathname: "/hive/[id]", params: { id: hiveId } }),
-        },
-        {
-          text: "Go Home",
-          onPress: () => router.replace("/hive"),
-        },
-      ]
-    );
+    if (Platform.OS === "web") {
+      const goHome = window.confirm(
+        "Inspection saved! 🐝\n\nClick OK to go Home, or Cancel to view the hive."
+      );
+      if (goHome) {
+        router.replace("/hive");
+      } else {
+        router.replace({ pathname: "/hive/[id]", params: { id: hiveId } });
+      }
+    } else {
+      Alert.alert(
+        "Inspection saved! 🐝",
+        "Where would you like to go?",
+        [
+          {
+            text: "View Hive",
+            onPress: () => router.replace({ pathname: "/hive/[id]", params: { id: hiveId } }),
+          },
+          {
+            text: "Go Home",
+            onPress: () => router.replace("/hive"),
+          },
+        ]
+      );
+    }
   };
 
   const handleSave = async () => {
@@ -149,7 +161,6 @@ export default function AddInspectionScreen() {
           </View>
         )}
 
-        {/* Queen — moves to Brood on Enter */}
         <Text style={S.label}>👑 Queen Status</Text>
         <TextInput
           placeholder="e.g. seen, eggs present, not found"
@@ -162,7 +173,6 @@ export default function AddInspectionScreen() {
           onSubmitEditing={() => broodRef.current?.focus()}
         />
 
-        {/* Brood — moves to Notes on Enter */}
         <Text style={S.label}>🐛 Brood Pattern</Text>
         <TextInput
           ref={broodRef}
@@ -176,7 +186,6 @@ export default function AddInspectionScreen() {
           onSubmitEditing={() => notesRef.current?.focus()}
         />
 
-        {/* Notes — submits on Enter */}
         <Text style={S.label}>📝 Notes</Text>
         <TextInput
           ref={notesRef}
@@ -190,7 +199,6 @@ export default function AddInspectionScreen() {
           onSubmitEditing={handleSave}
         />
 
-        {/* Photos */}
         <Text style={S.label}>📷 Photos</Text>
         {!isOnline && photoUris.length > 0 && (
           <View style={S.photoQueueNotice}>

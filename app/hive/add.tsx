@@ -6,6 +6,7 @@
  * UX improvements:
  *  - Enter key moves between fields, submits on last field
  *  - After saving, user chooses to view hive or go home
+ *  - Platform-aware save prompt (Alert on native, confirm on web)
  */
 
 import { useRouter } from "expo-router";
@@ -13,6 +14,7 @@ import { addDoc, collection } from "firebase/firestore";
 import { useRef, useState } from "react";
 import {
   Alert,
+  Platform,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -35,26 +37,36 @@ export default function AddHiveScreen() {
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
 
-  // Refs for field focus management
   const locationRef = useRef<TextInput>(null);
   const notesRef = useRef<TextInput>(null);
 
-  /** Shows post-save navigation prompt */
+  /** Platform-aware post-save navigation prompt */
   const showSavePrompt = (hiveId: string) => {
-    Alert.alert(
-      "Hive saved! 🐝",
-      "Where would you like to go?",
-      [
-        {
-          text: "View Hive",
-          onPress: () => router.replace({ pathname: "/hive/[id]", params: { id: hiveId } }),
-        },
-        {
-          text: "Go Home",
-          onPress: () => router.replace("/hive"),
-        },
-      ]
-    );
+    if (Platform.OS === "web") {
+      const goHome = window.confirm(
+        "Hive saved! 🐝\n\nClick OK to go Home, or Cancel to view the hive."
+      );
+      if (goHome) {
+        router.replace("/hive");
+      } else {
+        router.replace({ pathname: "/hive/[id]", params: { id: hiveId } });
+      }
+    } else {
+      Alert.alert(
+        "Hive saved! 🐝",
+        "Where would you like to go?",
+        [
+          {
+            text: "View Hive",
+            onPress: () => router.replace({ pathname: "/hive/[id]", params: { id: hiveId } }),
+          },
+          {
+            text: "Go Home",
+            onPress: () => router.replace("/hive"),
+          },
+        ]
+      );
+    }
   };
 
   const handleSave = async () => {
@@ -88,7 +100,6 @@ export default function AddHiveScreen() {
         <Text style={S.title}>New Hive</Text>
         <Text style={S.subtitle}>Add a hive to your apiary</Text>
 
-        {/* Name — moves to Location on Enter */}
         <Text style={S.label}>🏠 Hive Name</Text>
         <TextInput
           value={name}
@@ -101,7 +112,6 @@ export default function AddHiveScreen() {
           onSubmitEditing={() => locationRef.current?.focus()}
         />
 
-        {/* Location — moves to Notes on Enter */}
         <Text style={S.label}>📍 Location</Text>
         <TextInput
           ref={locationRef}
@@ -115,7 +125,6 @@ export default function AddHiveScreen() {
           onSubmitEditing={() => notesRef.current?.focus()}
         />
 
-        {/* Notes — submits on Enter */}
         <Text style={S.label}>📝 Notes</Text>
         <TextInput
           ref={notesRef}
