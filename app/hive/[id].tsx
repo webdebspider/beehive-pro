@@ -2,6 +2,9 @@
  * app/hive/[id].tsx
  *
  * Hive Detail Screen — shows all inspections for a single hive.
+ *
+ * Fix: photo thumbnails now fall back to local photoUris when Firebase
+ * Storage upload hasn't completed yet (e.g. offline or Expo Go).
  */
 
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -27,7 +30,10 @@ import { useNetworkStatus } from "../../utils/useNetworkStatus";
 type Inspection = {
   id: string; queen?: string; brood?: string;
   mites?: number | string | null; hiveBeetles?: string;
-  notes?: string; photoUrls?: string[]; createdAt?: any;
+  notes?: string;
+  photoUrls?: string[];  // Firebase Storage URLs (after upload)
+  photoUris?: string[];  // Local device URIs (before upload)
+  createdAt?: any;
 };
 
 export default function HiveDetailScreen() {
@@ -117,7 +123,11 @@ export default function HiveDetailScreen() {
         )}
 
         {inspections.map((inspection) => {
-          const photos = inspection.photoUrls || [];
+          // Use uploaded URLs if available, fall back to local URIs
+          const photos = (
+            inspection.photoUrls?.length ? inspection.photoUrls : inspection.photoUris
+          ) || [];
+
           return (
             <Pressable
               key={inspection.id}
@@ -140,7 +150,10 @@ export default function HiveDetailScreen() {
                   {photos.map((uri) => (
                     <Pressable
                       key={uri}
-                      onPress={() => router.push({ pathname: "/hive/photo-viewer", params: { uri, hiveId, inspectionId: inspection.id } })}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        router.push({ pathname: "/hive/photo-viewer", params: { uri, hiveId, inspectionId: inspection.id } });
+                      }}
                     >
                       <Image source={{ uri }} style={S.photo} />
                     </Pressable>
