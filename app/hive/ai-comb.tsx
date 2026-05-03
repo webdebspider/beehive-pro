@@ -4,18 +4,27 @@
  * AI Comb Review Screen — analyzes a comb photo using the Anthropic API.
  *
  * Fixes:
- *  - SafeAreaView from react-native-safe-area-context (not react-native)
+ *  - expo-file-system imported from legacy path (fixes deprecation warning)
+ *  - Web: shows notice and disables analyze for file:// URIs
+ *  - SafeAreaView from react-native-safe-area-context
  *  - Updated model to claude-opus-4-6
- *  - Receives hiveId param and passes it forward to inspection
  *  - Parses result into labeled sections for clean display
  *  - "Add to Inspection" button appears after successful analysis
  */
 
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import NavBar from "../../components/NavBar";
 import { useAppTheme } from "../../hooks/useAppTheme";
@@ -23,13 +32,13 @@ import { useAppTheme } from "../../hooks/useAppTheme";
 type ParsedResult = { label: string; emoji: string; text: string };
 
 const SECTION_MAP: { key: string; emoji: string; label: string }[] = [
-  { key: "Eggs", emoji: "🥚", label: "Eggs" },
-  { key: "Larvae", emoji: "🐛", label: "Larvae" },
+  { key: "Eggs",         emoji: "🥚", label: "Eggs" },
+  { key: "Larvae",       emoji: "🐛", label: "Larvae" },
   { key: "Capped Brood", emoji: "🟫", label: "Capped Brood" },
-  { key: "Honey", emoji: "🍯", label: "Honey & Nectar" },
-  { key: "Pollen", emoji: "🌼", label: "Pollen" },
-  { key: "Warning", emoji: "⚠️", label: "Warning Signs" },
-  { key: "Overall", emoji: "📋", label: "Overall Assessment" },
+  { key: "Honey",        emoji: "🍯", label: "Honey & Nectar" },
+  { key: "Pollen",       emoji: "🌼", label: "Pollen" },
+  { key: "Warning",      emoji: "⚠️", label: "Warning Signs" },
+  { key: "Overall",      emoji: "📋", label: "Overall Assessment" },
 ];
 
 function parseResult(raw: string): ParsedResult[] {
@@ -44,7 +53,6 @@ function parseResult(raw: string): ParsedResult[] {
       sections.push({ label: section.label, emoji: section.emoji, text: match[1].trim() });
     }
   }
-  // Fallback: if parsing fails, return raw as single block
   if (sections.length === 0) {
     sections.push({ label: "Analysis", emoji: "🔍", text: raw.trim() });
   }
@@ -63,14 +71,20 @@ export default function AiCombScreen() {
   const [rawResult, setRawResult] = useState("");
   const [error, setError] = useState("");
 
+  // Web browsers can't access file:// URIs from the Android device
+  const isLocalFile = photoUri.startsWith("file://");
+  const webBlocked = Platform.OS === "web" && isLocalFile;
+
   const analyzePhoto = async () => {
-    if (!photoUri) return;
+    if (!photoUri || webBlocked) return;
     setAnalyzing(true);
     setSections([]);
     setRawResult("");
     setError("");
     try {
-      const base64 = await FileSystem.readAsStringAsync(photoUri, { encoding: "base64" });
+      const base64 = await FileSystem.readAsStringAsync(photoUri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
       const response = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: {
@@ -108,7 +122,7 @@ export default function AiCombScreen() {
       } else {
         setError("No result returned. Try again.");
       }
-    } catch (e) {
+    } catch {
       setError("Something went wrong. Check your connection and try again.");
     } finally {
       setAnalyzing(false);
@@ -119,10 +133,7 @@ export default function AiCombScreen() {
     if (!rawResult) return;
     router.replace({
       pathname: "/hive/inspection/add",
-      params: {
-        id: hiveId,
-        notes: `AI Comb Review:\n${rawResult}`,
-      },
+      params: { id: hiveId, notes: `AI Comb Review:\n${rawResult}` },
     });
   };
 
@@ -144,10 +155,18 @@ export default function AiCombScreen() {
           </View>
         )}
 
+        {webBlocked && (
+          <View style={S.webNotice}>
+            <Text style={S.webNoticeText}>
+              📱 AI analysis for local photos requires the mobile app. Once photos sync to Firebase Storage, AI review will work here too.
+            </Text>
+          </View>
+        )}
+
         <Pressable
           onPress={analyzePhoto}
-          disabled={!photoUri || analyzing}
-          style={[S.analyzeButton, (!photoUri || analyzing) && S.disabledButton]}
+          disabled={!photoUri || analyzing || webBlocked}
+          style={[S.analyzeButton, (!photoUri || analyzing || webBlocked) && S.disabledButton]}
         >
           {analyzing ? (
             <View style={S.analyzeRow}>
@@ -156,7 +175,11 @@ export default function AiCombScreen() {
             </View>
           ) : (
             <Text style={S.analyzeText}>
-              {sections.length > 0 ? "Re-analyze Comb" : "Analyze Comb"}
+              {webBlocked
+                ? "Use Mobile App to Analyze"
+                : sections.length > 0
+                ? "Re-analyze Comb"
+                : "Analyze Comb"}
             </Text>
           )}
         </Pressable>
@@ -181,9 +204,7 @@ export default function AiCombScreen() {
 
         {sections.length > 0 && (
           <Pressable onPress={addToInspection} style={S.addButton}>
-            <Text style={S.addButtonText}>
-              {hiveId ? "Add to Inspection →" : "Add to Inspection →"}
-            </Text>
+            <Text style={S.addButtonText}>Add to Inspection →</Text>
           </Pressable>
         )}
       </ScrollView>
@@ -201,6 +222,8 @@ function makeStyles(theme: ReturnType<typeof useAppTheme>) {
     emptyBox: { height: 200, backgroundColor: theme.bgCard, borderRadius: theme.radiusLG, justifyContent: "center", alignItems: "center", borderWidth: 1, borderColor: theme.border },
     emptyEmoji: { fontSize: 40, marginBottom: 8 },
     emptyText: { color: theme.textMuted, fontSize: theme.fontSM },
+    webNotice: { backgroundColor: theme.bgCardAlt, borderWidth: 1, borderColor: theme.border, padding: theme.spaceMD, borderRadius: theme.radiusMD, marginTop: theme.spaceMD },
+    webNoticeText: { color: theme.textSecondary, fontSize: theme.fontSM, lineHeight: 20 },
     analyzeButton: { backgroundColor: theme.honey, padding: 16, borderRadius: theme.radiusMD, alignItems: "center", marginTop: theme.spaceMD },
     disabledButton: { backgroundColor: theme.textMuted },
     analyzeRow: { flexDirection: "row", alignItems: "center", gap: 10 },
