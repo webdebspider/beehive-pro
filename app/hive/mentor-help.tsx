@@ -9,6 +9,9 @@
  *
  * Share options via native Share sheet (picks up any app the user has):
  *  WhatsApp, Discord, Telegram, iMessage, Email, etc.
+ * 
+ * jsut a note to self to add a plant note here for the github commit and push test
+ * 
  */
 
 import * as Clipboard from "expo-clipboard";
