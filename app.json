@@ -39,10 +39,16 @@
           }
         }
       ],
-      "expo-asset"
+      "expo-asset",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow Beehive Pro to use your location for forage logging."
+        }
+      ]
     ],
     "experiments": {
-  "typedRoutes": true
-}
+      "typedRoutes": true
+    }
   }
 }
