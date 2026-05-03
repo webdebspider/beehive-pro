@@ -23,7 +23,7 @@ export default function NavBar() {
         <Pressable onPress={() => router.back()} style={S.navButton}>
           <Text style={S.navButtonText}>← Back</Text>
         </Pressable>
-        <Pressable onPress={() => router.push("/hive")} style={S.navButton}>
+        <Pressable onPress={() => router.replace("/hive")} style={S.navButton}>
           <Text style={S.navButtonText}>🏠 Home</Text>
         </Pressable>
       </View>
