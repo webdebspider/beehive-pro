@@ -1,34 +1,50 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+/**
+ * utils/auth.ts
+ *
+ * Firebase Authentication utilities.
+ * Handles email/password and Google sign-in.
+ *
+ * Used by:
+ *  - app/login.tsx
+ *  - context/AuthContext.tsx
+ */
 
-export const login = async (email: string, password: string) => {
-  const users = JSON.parse((await AsyncStorage.getItem('users')) || '[]');
+import {
+  createUserWithEmailAndPassword,
+  getAuth,
+  GoogleAuthProvider,
+  signInWithCredential,
+  signInWithEmailAndPassword,
+  signOut,
+  sendPasswordResetEmail,
+} from "firebase/auth";
+import { app } from "./firebase";
 
-  const found = users.find(
-    (u: any) => u.email === email && u.password === password
-  );
+export const auth = getAuth(app);
+export const googleProvider = new GoogleAuthProvider();
 
-  if (!found) throw new Error('Invalid login');
+/** Sign in with email and password */
+export async function loginWithEmail(email: string, password: string) {
+  return signInWithEmailAndPassword(auth, email, password);
+}
 
-  await AsyncStorage.setItem('session', JSON.stringify(found));
-};
+/** Create a new account with email and password */
+export async function registerWithEmail(email: string, password: string) {
+  return createUserWithEmailAndPassword(auth, email, password);
+}
 
-export const register = async (email: string, password: string) => {
-  const users = JSON.parse((await AsyncStorage.getItem('users')) || '[]');
+/** Sign in with Google credential (from expo-auth-session) */
+export async function loginWithGoogleCredential(idToken: string) {
+  const credential = GoogleAuthProvider.credential(idToken);
+  return signInWithCredential(auth, credential);
+}
 
-  const exists = users.find((u: any) => u.email === email);
-  if (exists) throw new Error('User exists');
+/** Send password reset email */
+export async function resetPassword(email: string) {
+  return sendPasswordResetEmail(auth, email);
+}
 
-  const user = { id: Date.now().toString(), email, password };
-  users.push(user);
-
-  await AsyncStorage.setItem('users', JSON.stringify(users));
-  await AsyncStorage.setItem('session', JSON.stringify(user));
-};
-
-export const logout = async () => {
-  await AsyncStorage.removeItem('session');
-};
-
-export const getSession = async () => {
-  return JSON.parse((await AsyncStorage.getItem('session')) || 'null');
-};
+/** Sign out current user */
+export async function logout() {
+  return signOut(auth);
+}

@@ -1,17 +1,21 @@
 /**
  * app/_layout.tsx
  *
- * Root layout — wraps the entire app in SettingsProvider so every
- * screen has access to global settings via useSettingsContext().
+ * Root layout — wraps the entire app in:
+ *  - AuthProvider: global Firebase auth state
+ *  - SettingsProvider: global app settings (theme, font, mode)
  */
 
 import { Stack } from "expo-router";
+import { AuthProvider } from "../context/AuthContext";
 import { SettingsProvider } from "../context/SettingsContext";
 
 export default function Layout() {
   return (
-    <SettingsProvider>
-      <Stack screenOptions={{ headerShown: false }} />
-    </SettingsProvider>
+    <AuthProvider>
+      <SettingsProvider>
+        <Stack screenOptions={{ headerShown: false }} />
+      </SettingsProvider>
+    </AuthProvider>
   );
 }

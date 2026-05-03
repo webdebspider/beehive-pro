@@ -1,8 +1,14 @@
+/**
+ * utils/firebase.ts
+ *
+ * Firebase initialization.
+ * Exports app, db, and storage for use throughout the app.
+ */
+
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
   apiKey: "AIzaSyDEJmor-jQRPlRaP2h1M9jr2_z-6jwZdao",
   authDomain: "beehive-app-a0cd4.firebaseapp.com",
@@ -13,7 +19,6 @@ const firebaseConfig = {
   measurementId: "G-6YMFMZLH6Y"
 };
 
-const app = initializeApp(firebaseConfig);
-
-  export const db = getFirestore(app);
-  export const storage = getStorage(app);
+export const app = initializeApp(firebaseConfig);
+export const db = getFirestore(app);
+export const storage = getStorage(app);
