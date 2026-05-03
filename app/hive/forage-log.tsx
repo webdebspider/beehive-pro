@@ -5,8 +5,8 @@
  * GPS auto-detects current location on load.
  * Can be hive-linked (receives id param) or standalone.
  *
+ * Web: map preview hidden (react-native-maps is native only).
  * Saves to Firestore: forage/{entryId}
- * Optional hiveId field links the entry to a specific hive.
  */
 
 import * as Location from "expo-location";
@@ -24,12 +24,20 @@ import {
   TextInput,
   View,
 } from "react-native";
-import MapView, { Marker } from "react-native-maps";
 import { SafeAreaView } from "react-native-safe-area-context";
 import NavBar from "../../components/NavBar";
 import { useAuthContext } from "../../context/AuthContext";
 import { useAppTheme } from "../../hooks/useAppTheme";
 import { db } from "../../utils/firebase";
+
+// Only import react-native-maps on native — importing it on web crashes
+let MapView: any = null;
+let Marker: any = null;
+if (Platform.OS !== "web") {
+  const Maps = require("react-native-maps");
+  MapView = Maps.default;
+  Marker = Maps.Marker;
+}
 
 const FORAGE_PLANTS = [
   "🍀 Clover", "🌼 Dandelion", "💜 Lavender", "🌻 Sunflower",
@@ -72,15 +80,10 @@ export default function ForageLogScreen() {
     setLocating(true);
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== "granted") {
-        setLocating(false);
-        return;
-      }
+      if (status !== "granted") { setLocating(false); return; }
       const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
       const { latitude, longitude } = loc.coords;
       setCoords({ latitude, longitude });
-
-      // Reverse geocode for a human-readable name
       const places = await Location.reverseGeocodeAsync({ latitude, longitude });
       if (places.length > 0) {
         const p = places[0];
@@ -167,7 +170,8 @@ export default function ForageLogScreen() {
             <Text style={S.locationCoords}>
               {coords.latitude.toFixed(5)}, {coords.longitude.toFixed(5)}
             </Text>
-            {Platform.OS !== "web" && (
+            {/* Map preview — native only */}
+            {Platform.OS !== "web" && MapView && (
               <MapView
                 style={S.map}
                 initialRegion={{
@@ -246,7 +250,6 @@ export default function ForageLogScreen() {
           value={temperature}
           onChangeText={setTemperature}
           style={S.input}
-          keyboardType="default"
         />
 
         {/* Notes */}

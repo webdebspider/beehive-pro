@@ -4,9 +4,9 @@
  * Forage Map Screen — displays all logged forage entries as pins on a map.
  * Tap a pin to see a summary. Log new entry from the FAB button.
  *
+ * Web: shows a list view fallback (react-native-maps is native only).
  * Android note: requires a Google Maps API key in app.json:
  *   "android": { "config": { "googleMaps": { "apiKey": "YOUR_KEY_HERE" } } }
- * iOS works without a key.
  */
 
 import { useRouter } from "expo-router";
@@ -21,12 +21,22 @@ import {
   Text,
   View,
 } from "react-native";
-import MapView, { Callout, Marker } from "react-native-maps";
 import { SafeAreaView } from "react-native-safe-area-context";
 import NavBar from "../../components/NavBar";
 import { useAuthContext } from "../../context/AuthContext";
 import { useAppTheme } from "../../hooks/useAppTheme";
 import { db } from "../../utils/firebase";
+
+// Only import react-native-maps on native — importing it on web crashes
+let MapView: any = null;
+let Marker: any = null;
+let Callout: any = null;
+if (Platform.OS !== "web") {
+  const Maps = require("react-native-maps");
+  MapView = Maps.default;
+  Marker = Maps.Marker;
+  Callout = Maps.Callout;
+}
 
 type ForageEntry = {
   id: string;
@@ -109,58 +119,93 @@ export default function ForageMapScreen() {
     );
   }
 
+  // ── Web fallback — list view ──────────────────────────────────────────────
+  if (Platform.OS === "web") {
+    return (
+      <SafeAreaView style={S.page}>
+        <NavBar />
+        <ScrollView contentContainerStyle={S.content}>
+          <View style={S.webHeader}>
+            <Text style={S.title}>🌿 Forage Map</Text>
+            <Pressable onPress={() => router.push("/hive/forage-log")} style={S.fabInline}>
+              <Text style={S.fabInlineText}>+ Log Forage</Text>
+            </Pressable>
+          </View>
+          <Text style={S.webMapNote}>🗺️ Map view available on iOS and Android</Text>
+
+          {entries.length === 0 ? (
+            <View style={S.emptyBox}>
+              <Text style={S.emptyEmoji}>🌿</Text>
+              <Text style={S.emptyText}>No forage entries yet</Text>
+              <Text style={S.emptyHint}>Tap "+ Log Forage" to record what's blooming</Text>
+            </View>
+          ) : (
+            entries.map((entry) => (
+              <View key={entry.id} style={S.listCard}>
+                <Text style={S.listCardTitle}>{entry.locationName || "Forage Entry"}</Text>
+                <Text style={S.listCardDate}>{new Date(entry.date).toLocaleDateString()}</Text>
+                <View style={S.plantRow}>
+                  {entry.plants.slice(0, 4).map((p) => (
+                    <View key={p} style={S.plantBadge}>
+                      <Text style={S.plantBadgeText}>{p}</Text>
+                    </View>
+                  ))}
+                  {entry.plants.length > 4 && (
+                    <View style={S.plantBadge}>
+                      <Text style={S.plantBadgeText}>+{entry.plants.length - 4} more</Text>
+                    </View>
+                  )}
+                </View>
+                <Text style={S.listCardMeta}>
+                  {WEATHER_LABELS[entry.weather] || entry.weather}
+                  {entry.temperature ? `  •  🌡️ ${entry.temperature}` : ""}
+                </Text>
+                {entry.notes ? <Text style={S.listCardNotes}>{entry.notes}</Text> : null}
+              </View>
+            ))
+          )}
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
+
+  // ── Native map view ───────────────────────────────────────────────────────
   return (
     <SafeAreaView style={S.page}>
       <NavBar />
-
       <View style={S.mapContainer}>
-        {Platform.OS !== "web" ? (
-          <MapView
-            style={S.map}
-            initialRegion={initialRegion}
-            onPress={() => setSelected(null)}
-          >
-            {mappableEntries.map((entry) => (
-              <Marker
-                key={entry.id}
-                coordinate={entry.location!}
-                onPress={() => setSelected(entry)}
-                pinColor={theme.honey}
-              >
-                <View style={S.pin}>
-                  <Text style={S.pinEmoji}>🌿</Text>
-                </View>
-                <Callout tooltip>
-                  <View style={S.callout}>
-                    <Text style={S.calloutTitle}>
-                      {entry.locationName || "Forage Entry"}
-                    </Text>
-                    <Text style={S.calloutText}>
-                      {entry.plants.slice(0, 2).join(", ")}
-                      {entry.plants.length > 2 ? ` +${entry.plants.length - 2} more` : ""}
-                    </Text>
-                  </View>
-                </Callout>
-              </Marker>
-            ))}
-          </MapView>
-        ) : (
-          <View style={S.webFallback}>
-            <Text style={S.webFallbackEmoji}>🗺️</Text>
-            <Text style={S.webFallbackText}>Map view available on iOS and Android</Text>
-          </View>
-        )}
-
-        {/* FAB — Log New */}
-        <Pressable
-          style={S.fab}
-          onPress={() => router.push("/hive/forage-log")}
+        <MapView
+          style={S.map}
+          initialRegion={initialRegion}
+          onPress={() => setSelected(null)}
         >
+          {mappableEntries.map((entry) => (
+            <Marker
+              key={entry.id}
+              coordinate={entry.location!}
+              onPress={() => setSelected(entry)}
+            >
+              <View style={S.pin}>
+                <Text style={S.pinEmoji}>🌿</Text>
+              </View>
+              <Callout tooltip>
+                <View style={S.callout}>
+                  <Text style={S.calloutTitle}>{entry.locationName || "Forage Entry"}</Text>
+                  <Text style={S.calloutText}>
+                    {entry.plants.slice(0, 2).join(", ")}
+                    {entry.plants.length > 2 ? ` +${entry.plants.length - 2} more` : ""}
+                  </Text>
+                </View>
+              </Callout>
+            </Marker>
+          ))}
+        </MapView>
+
+        <Pressable style={S.fab} onPress={() => router.push("/hive/forage-log")}>
           <Text style={S.fabText}>+ Log Forage</Text>
         </Pressable>
       </View>
 
-      {/* Selected entry detail panel */}
       {selected && (
         <View style={S.detailPanel}>
           <View style={S.detailHeader}>
@@ -186,24 +231,19 @@ export default function ForageMapScreen() {
               {WEATHER_LABELS[selected.weather] || selected.weather}
               {selected.temperature ? `  •  🌡️ ${selected.temperature}` : ""}
             </Text>
-            <Text style={S.detailMetaText}>
-              {new Date(selected.date).toLocaleDateString()}
-            </Text>
+            <Text style={S.detailMetaText}>{new Date(selected.date).toLocaleDateString()}</Text>
           </View>
-          {selected.notes ? (
-            <Text style={S.detailNotes}>{selected.notes}</Text>
-          ) : null}
+          {selected.notes ? <Text style={S.detailNotes}>{selected.notes}</Text> : null}
         </View>
       )}
 
-      {/* List fallback — entries without location */}
-      {entries.length === 0 ? (
+      {entries.length === 0 && (
         <View style={S.emptyBox}>
           <Text style={S.emptyEmoji}>🌿</Text>
           <Text style={S.emptyText}>No forage entries yet</Text>
           <Text style={S.emptyHint}>Tap "+ Log Forage" to record what's blooming</Text>
         </View>
-      ) : null}
+      )}
     </SafeAreaView>
   );
 }
@@ -211,38 +251,32 @@ export default function ForageMapScreen() {
 function makeStyles(theme: ReturnType<typeof useAppTheme>) {
   return StyleSheet.create({
     page: { flex: 1, backgroundColor: theme.bg },
+    content: { padding: theme.spaceMD, paddingBottom: 50 },
+    webHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: theme.spaceSM },
+    title: { color: theme.textPrimary, fontSize: theme.fontLG, fontWeight: "900" },
+    webMapNote: { color: theme.textMuted, fontSize: theme.fontXS, marginBottom: theme.spaceMD, fontStyle: "italic" },
+    fabInline: { backgroundColor: theme.green, paddingVertical: 10, paddingHorizontal: 16, borderRadius: theme.radiusMD },
+    fabInlineText: { color: "#fff", fontWeight: "900", fontSize: theme.fontSM },
+    listCard: { backgroundColor: theme.bgCard, padding: theme.spaceMD, borderRadius: theme.radiusLG, marginBottom: 12, borderWidth: 1, borderColor: theme.border },
+    listCardTitle: { color: theme.textPrimary, fontWeight: "900", fontSize: theme.fontMD, marginBottom: 2 },
+    listCardDate: { color: theme.textMuted, fontSize: theme.fontXS, marginBottom: 8 },
+    listCardMeta: { color: theme.textMuted, fontSize: theme.fontXS, marginTop: 6 },
+    listCardNotes: { color: theme.textSecondary, fontSize: theme.fontXS, marginTop: 6, lineHeight: 18 },
     mapContainer: { flex: 1, position: "relative" },
     map: { flex: 1 },
-    webFallback: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: theme.bgCard },
-    webFallbackEmoji: { fontSize: 48, marginBottom: 12 },
-    webFallbackText: { color: theme.textMuted, fontSize: theme.fontSM },
     pin: { backgroundColor: theme.bgCard, borderRadius: 20, padding: 6, borderWidth: 2, borderColor: theme.green },
     pinEmoji: { fontSize: 18 },
     callout: { backgroundColor: theme.bgCard, padding: 10, borderRadius: theme.radiusSM, maxWidth: 200, borderWidth: 1, borderColor: theme.border },
     calloutTitle: { color: theme.textPrimary, fontWeight: "900", fontSize: theme.fontXS, marginBottom: 2 },
     calloutText: { color: theme.textMuted, fontSize: theme.fontXS },
     fab: {
-      position: "absolute",
-      bottom: 24,
-      right: 20,
-      backgroundColor: theme.green,
-      paddingVertical: 14,
-      paddingHorizontal: 20,
-      borderRadius: 30,
-      shadowColor: "#000",
-      shadowOpacity: 0.3,
-      shadowRadius: 8,
-      shadowOffset: { width: 0, height: 4 },
-      elevation: 8,
+      position: "absolute", bottom: 24, right: 20,
+      backgroundColor: theme.green, paddingVertical: 14, paddingHorizontal: 20,
+      borderRadius: 30, elevation: 8,
+      shadowColor: "#000", shadowOpacity: 0.3, shadowRadius: 8, shadowOffset: { width: 0, height: 4 },
     },
     fabText: { color: "#fff", fontWeight: "900", fontSize: theme.fontSM },
-    detailPanel: {
-      backgroundColor: theme.bgCard,
-      borderTopWidth: 1,
-      borderTopColor: theme.border,
-      padding: theme.spaceMD,
-      maxHeight: 200,
-    },
+    detailPanel: { backgroundColor: theme.bgCard, borderTopWidth: 1, borderTopColor: theme.border, padding: theme.spaceMD, maxHeight: 200 },
     detailHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 },
     detailTitle: { color: theme.textPrimary, fontWeight: "900", fontSize: theme.fontMD, flex: 1 },
     detailClose: { color: theme.textMuted, fontSize: 18, paddingLeft: 12 },
