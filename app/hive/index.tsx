@@ -3,11 +3,6 @@
  *
  * Hive Dashboard — main landing screen of the app.
  * Shows only the current user's hives.
- *
- * Update: stat cards for Hives, Inspections, and Reviews are now tappable.
- *  - Hives → scrolls to hive list
- *  - Inspections → /hive/charts
- *  - Reviews → /hive/charts
  */
 
 import { useRouter } from "expo-router";
@@ -146,9 +141,7 @@ export default function HiveDashboard() {
               {totalMentorCount}
             </Text>
             <Text style={S.statLabel}>Reviews</Text>
-            <Text style={[S.statHint, totalMentorCount > 0 && S.statHintWarning]}>
-              → charts
-            </Text>
+            <Text style={[S.statHint, totalMentorCount > 0 && S.statHintWarning]}>→ charts</Text>
           </Pressable>
         </View>
 
@@ -170,6 +163,9 @@ export default function HiveDashboard() {
           </Pressable>
           <Pressable onPress={() => router.push("/hive/charts")} style={S.secondaryButton}>
             <Text style={S.secondaryButtonText}>📊 Charts</Text>
+          </Pressable>
+          <Pressable onPress={() => router.push("/hive/forage-map")} style={S.forageButton}>
+            <Text style={S.forageButtonText}>🗺️ Forage</Text>
           </Pressable>
         </View>
 
@@ -205,9 +201,7 @@ export default function HiveDashboard() {
               </View>
               <View style={S.cardFooter}>
                 <View style={S.cardBadge}>
-                  <Text style={S.cardBadgeText}>
-                    {hive.inspections.length} inspections
-                  </Text>
+                  <Text style={S.cardBadgeText}>{hive.inspections.length} inspections</Text>
                 </View>
                 {hive.mentorCount > 0 && (
                   <View style={S.cardBadgeWarning}>
@@ -259,6 +253,8 @@ function makeStyles(theme: ReturnType<typeof useAppTheme>) {
     primaryButtonText: { color: "#fff", fontWeight: "900", fontSize: theme.fontMD },
     secondaryButton: { flex: 1, backgroundColor: theme.bgCardAlt, padding: 14, borderRadius: theme.radiusMD, alignItems: "center", borderWidth: 1, borderColor: theme.border },
     secondaryButtonText: { color: theme.textPrimary, fontWeight: "900", fontSize: theme.fontMD },
+    forageButton: { flex: 1, backgroundColor: theme.bgCardAlt, padding: 14, borderRadius: theme.radiusMD, alignItems: "center", borderWidth: 1, borderColor: theme.green },
+    forageButtonText: { color: theme.greenLight, fontWeight: "900", fontSize: theme.fontMD },
     sectionLabel: { color: theme.textMuted, fontSize: theme.fontXS, fontWeight: "800", letterSpacing: 1.5, marginBottom: theme.spaceSM, marginTop: theme.spaceSM },
     emptyBox: { alignItems: "center", marginTop: 40 },
     emptyEmoji: { fontSize: 48, marginBottom: 12 },

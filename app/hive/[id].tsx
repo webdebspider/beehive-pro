@@ -81,7 +81,10 @@ export default function HiveDetailScreen() {
         <View style={S.titleRow}>
           <Text style={S.title}>Inspections</Text>
           <View style={S.titleButtons}>
-            <Pressable style={S.quickButton} onPress={() => router.push({ pathname: "/hive/inspection/quick", params: { id: hiveId } })}>
+            <Pressable
+              style={S.quickButton}
+              onPress={() => router.push({ pathname: "/hive/inspection/quick", params: { id: hiveId } })}
+            >
               <Text style={S.quickButtonText}>⚡ Quick</Text>
             </Pressable>
             <Pressable
@@ -90,7 +93,16 @@ export default function HiveDetailScreen() {
             >
               <Text style={S.combButtonText}>🔍 Comb</Text>
             </Pressable>
-            <Pressable style={S.addButton} onPress={() => router.push({ pathname: "/hive/inspection/add", params: { id: hiveId } })}>
+            <Pressable
+              style={S.forageButton}
+              onPress={() => router.push({ pathname: "/hive/forage-log", params: { id: hiveId } })}
+            >
+              <Text style={S.forageButtonText}>🌿 Forage</Text>
+            </Pressable>
+            <Pressable
+              style={S.addButton}
+              onPress={() => router.push({ pathname: "/hive/inspection/add", params: { id: hiveId } })}
+            >
               <Text style={S.addButtonText}>+ Add</Text>
             </Pressable>
           </View>
@@ -107,7 +119,11 @@ export default function HiveDetailScreen() {
         {inspections.map((inspection) => {
           const photos = inspection.photoUrls || [];
           return (
-            <Pressable key={inspection.id} style={S.card} onPress={() => router.push({ pathname: "/hive/inspection/edit", params: { hiveId, inspectionId: inspection.id } })}>
+            <Pressable
+              key={inspection.id}
+              style={S.card}
+              onPress={() => router.push({ pathname: "/hive/inspection/edit", params: { hiveId, inspectionId: inspection.id } })}
+            >
               <Text style={S.cardDate}>
                 {inspection.createdAt?.toDate ? inspection.createdAt.toDate().toLocaleString() : "No date"}
               </Text>
@@ -122,7 +138,10 @@ export default function HiveDetailScreen() {
               {photos.length > 0 && (
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={S.photoStrip}>
                   {photos.map((uri) => (
-                    <Pressable key={uri} onPress={() => router.push({ pathname: "/hive/photo-viewer", params: { uri, hiveId, inspectionId: inspection.id } })}>
+                    <Pressable
+                      key={uri}
+                      onPress={() => router.push({ pathname: "/hive/photo-viewer", params: { uri, hiveId, inspectionId: inspection.id } })}
+                    >
                       <Image source={{ uri }} style={S.photo} />
                     </Pressable>
                   ))}
@@ -143,11 +162,13 @@ function makeStyles(theme: ReturnType<typeof useAppTheme>) {
     content: { padding: theme.spaceMD, paddingBottom: 50 },
     titleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: theme.spaceMD },
     title: { color: theme.textPrimary, fontSize: theme.fontLG, fontWeight: "900" },
-    titleButtons: { flexDirection: "row", gap: 8 },
+    titleButtons: { flexDirection: "row", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" },
     quickButton: { backgroundColor: theme.bgCardAlt, paddingVertical: 8, paddingHorizontal: 14, borderRadius: theme.radiusSM, borderWidth: 1, borderColor: theme.honey },
     quickButtonText: { color: theme.honey, fontWeight: "900", fontSize: theme.fontSM },
     combButton: { backgroundColor: theme.bgCardAlt, paddingVertical: 8, paddingHorizontal: 14, borderRadius: theme.radiusSM, borderWidth: 1, borderColor: theme.honeyLight },
     combButtonText: { color: theme.honeyLight, fontWeight: "900", fontSize: theme.fontSM },
+    forageButton: { backgroundColor: theme.bgCardAlt, paddingVertical: 8, paddingHorizontal: 14, borderRadius: theme.radiusSM, borderWidth: 1, borderColor: theme.green },
+    forageButtonText: { color: theme.greenLight, fontWeight: "900", fontSize: theme.fontSM },
     addButton: { backgroundColor: theme.green, paddingVertical: 8, paddingHorizontal: 16, borderRadius: theme.radiusSM },
     addButtonText: { color: "#fff", fontWeight: "900", fontSize: theme.fontSM },
     emptyBox: { alignItems: "center", marginTop: 40 },
