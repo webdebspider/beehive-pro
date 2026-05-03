@@ -2,15 +2,6 @@
  * app/hive/inspection/add.tsx
  *
  * Add Inspection Screen — creates a new inspection for a hive.
- *
- * UX improvements:
- *  - Enter key moves between fields, submits on last field
- *  - After saving, user chooses to view hive or go home
- *  - Platform-aware save prompt (Alert on native, confirm on web)
- *
- * Offline handling:
- *  - Text data saves to Firestore always
- *  - Photos queue to AsyncStorage if offline, sync when back online
  */
 
 import * as ImagePicker from "expo-image-picker";
@@ -22,13 +13,13 @@ import {
   Image,
   Platform,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import NavBar from "../../../components/NavBar";
 import { useAppTheme } from "../../../hooks/useAppTheme";
 import { db } from "../../../utils/firebase";
@@ -56,86 +47,48 @@ export default function AddInspectionScreen() {
   const notesRef = useRef<TextInput>(null);
 
   const takePhoto = async () => {
-    const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.6,
-    });
+    const result = await ImagePicker.launchCameraAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.6 });
     if (!result.canceled) setPhotoUris((prev) => [...prev, result.assets[0].uri]);
   };
 
   const pickPhoto = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.6,
-    });
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.6 });
     if (!result.canceled) setPhotoUris((prev) => [...prev, result.assets[0].uri]);
   };
 
-  const removePhoto = (uri: string) =>
-    setPhotoUris((prev) => prev.filter((item) => item !== uri));
+  const removePhoto = (uri: string) => setPhotoUris((prev) => prev.filter((item) => item !== uri));
 
-  /** Platform-aware post-save navigation prompt */
   const showSavePrompt = () => {
     if (Platform.OS === "web") {
-      const goHome = window.confirm(
-        "Inspection saved! 🐝\n\nClick OK to go Home, or Cancel to view the hive."
-      );
-      if (goHome) {
-        router.replace("/hive");
-      } else {
-        router.replace({ pathname: "/hive/[id]", params: { id: hiveId } });
-      }
+      const goHome = window.confirm("Inspection saved! 🐝\n\nClick OK to go Home, or Cancel to view the hive.");
+      if (goHome) { router.replace("/hive"); } else { router.replace({ pathname: "/hive/[id]", params: { id: hiveId } }); }
     } else {
-      Alert.alert(
-        "Inspection saved! 🐝",
-        "Where would you like to go?",
-        [
-          {
-            text: "View Hive",
-            onPress: () => router.replace({ pathname: "/hive/[id]", params: { id: hiveId } }),
-          },
-          {
-            text: "Go Home",
-            onPress: () => router.replace("/hive"),
-          },
-        ]
-      );
+      Alert.alert("Inspection saved! 🐝", "Where would you like to go?", [
+        { text: "View Hive", onPress: () => router.replace({ pathname: "/hive/[id]", params: { id: hiveId } }) },
+        { text: "Go Home", onPress: () => router.replace("/hive") },
+      ]);
     }
   };
 
   const handleSave = async () => {
     if (saving) return;
     if (!hiveId) { Alert.alert("Missing Hive", "No hive ID was provided."); return; }
-
     try {
       setSaving(true);
-
       const docRef = await addDoc(collection(db, "hives", hiveId, "inspections"), {
-        hiveId, queen, brood,
-        notes: notes.trim(),
-        photoUris: [], photoUrls: [],
-        createdAt: serverTimestamp(),
-        date: new Date().toISOString(),
+        hiveId, queen, brood, notes: notes.trim(), photoUris: [], photoUrls: [],
+        createdAt: serverTimestamp(), date: new Date().toISOString(),
       });
-
       if (photoUris.length > 0) {
         if (isOnline) {
           try {
             const uploadedUrls = await uploadInspectionPhotos(hiveId, docRef.id, photoUris);
-            await updateDoc(docRef, {
-              photoUris: uploadedUrls,
-              photoUrls: uploadedUrls,
-              photosUploaded: true,
-              updatedAt: new Date(),
-            });
-          } catch (uploadError) {
-            await addToQueue({ hiveId, inspectionId: docRef.id, photoUris });
-          }
+            await updateDoc(docRef, { photoUris: uploadedUrls, photoUrls: uploadedUrls, photosUploaded: true, updatedAt: new Date() });
+          } catch { await addToQueue({ hiveId, inspectionId: docRef.id, photoUris }); }
         } else {
           await addToQueue({ hiveId, inspectionId: docRef.id, photoUris });
         }
       }
-
       showSavePrompt();
     } catch (e) {
       Alert.alert("Save failed", "The inspection could not be saved.");
@@ -155,9 +108,7 @@ export default function AddInspectionScreen() {
 
         {!isOnline && (
           <View style={S.offlineNotice}>
-            <Text style={S.offlineNoticeText}>
-              📵 You're offline — inspection will save, photos will sync later
-            </Text>
+            <Text style={S.offlineNoticeText}>📵 You're offline — inspection will save, photos will sync later</Text>
           </View>
         )}
 
@@ -165,11 +116,8 @@ export default function AddInspectionScreen() {
         <TextInput
           placeholder="e.g. seen, eggs present, not found"
           placeholderTextColor={theme.textMuted}
-          value={queen}
-          onChangeText={setQueen}
-          style={S.input}
-          returnKeyType="next"
-          blurOnSubmit={false}
+          value={queen} onChangeText={setQueen}
+          style={S.input} returnKeyType="next" blurOnSubmit={false}
           onSubmitEditing={() => broodRef.current?.focus()}
         />
 
@@ -178,11 +126,8 @@ export default function AddInspectionScreen() {
           ref={broodRef}
           placeholder="e.g. strong, weak, spotty"
           placeholderTextColor={theme.textMuted}
-          value={brood}
-          onChangeText={setBrood}
-          style={S.input}
-          returnKeyType="next"
-          blurOnSubmit={false}
+          value={brood} onChangeText={setBrood}
+          style={S.input} returnKeyType="next" blurOnSubmit={false}
           onSubmitEditing={() => notesRef.current?.focus()}
         />
 
@@ -191,29 +136,20 @@ export default function AddInspectionScreen() {
           ref={notesRef}
           placeholder="Observations, concerns, treatments..."
           placeholderTextColor={theme.textMuted}
-          value={notes}
-          onChangeText={setNotes}
-          multiline
-          style={[S.input, S.notesInput]}
-          returnKeyType="done"
-          onSubmitEditing={handleSave}
+          value={notes} onChangeText={setNotes}
+          multiline style={[S.input, S.notesInput]}
+          returnKeyType="done" onSubmitEditing={handleSave}
         />
 
         <Text style={S.label}>📷 Photos</Text>
         {!isOnline && photoUris.length > 0 && (
           <View style={S.photoQueueNotice}>
-            <Text style={S.photoQueueNoticeText}>
-              ⏳ {photoUris.length} photo{photoUris.length === 1 ? "" : "s"} will upload when back online
-            </Text>
+            <Text style={S.photoQueueNoticeText}>⏳ {photoUris.length} photo{photoUris.length === 1 ? "" : "s"} will upload when back online</Text>
           </View>
         )}
         <View style={S.photoButtons}>
-          <Pressable onPress={takePhoto} style={S.photoButton}>
-            <Text style={S.photoButtonText}>📷 Camera</Text>
-          </Pressable>
-          <Pressable onPress={pickPhoto} style={S.photoButton}>
-            <Text style={S.photoButtonText}>🖼️ Gallery</Text>
-          </Pressable>
+          <Pressable onPress={takePhoto} style={S.photoButton}><Text style={S.photoButtonText}>📷 Camera</Text></Pressable>
+          <Pressable onPress={pickPhoto} style={S.photoButton}><Text style={S.photoButtonText}>🖼️ Gallery</Text></Pressable>
         </View>
 
         {photoUris.length > 0 && (
@@ -227,14 +163,8 @@ export default function AddInspectionScreen() {
           </View>
         )}
 
-        <Pressable
-          onPress={handleSave}
-          disabled={saving}
-          style={[S.saveButton, saving && S.disabledButton]}
-        >
-          <Text style={S.saveText}>
-            {saving ? "Saving..." : isOnline ? "Save Inspection" : "Save Offline 📵"}
-          </Text>
+        <Pressable onPress={handleSave} disabled={saving} style={[S.saveButton, saving && S.disabledButton]}>
+          <Text style={S.saveText}>{saving ? "Saving..." : isOnline ? "Save Inspection" : "Save Offline 📵"}</Text>
         </Pressable>
       </ScrollView>
     </SafeAreaView>

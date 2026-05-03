@@ -7,7 +7,15 @@
 import { useRouter } from "expo-router";
 import { collection, getDocs } from "firebase/firestore";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import NavBar from "../../components/NavBar";
 import { useAppTheme } from "../../hooks/useAppTheme";
 import { db } from "../../utils/firebase";
@@ -91,7 +99,10 @@ export default function ChartsScreen() {
                   ))}
                 </View>
               )}
-              <Pressable onPress={() => router.push({ pathname: "/hive/[id]", params: { id: hive.id } })} style={S.openButton}>
+              <Pressable
+                onPress={() => router.push({ pathname: "/hive/[id]", params: { id: hive.id } })}
+                style={S.openButton}
+              >
                 <Text style={S.openText}>Open Hive →</Text>
               </Pressable>
             </View>

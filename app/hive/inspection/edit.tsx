@@ -2,11 +2,6 @@
  * app/hive/inspection/edit.tsx
  *
  * Edit Inspection Screen — loads and edits an existing inspection.
- *
- * UX improvements:
- *  - Enter key moves between fields, submits on last field
- *  - After saving, user chooses to view hive or go home
- *  - Platform-aware save prompt (Alert on native, confirm on web)
  */
 
 import * as ImagePicker from "expo-image-picker";
@@ -19,13 +14,13 @@ import {
   Image,
   Platform,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import NavBar from "../../../components/NavBar";
 import { useAppTheme } from "../../../hooks/useAppTheme";
 import { db } from "../../../utils/firebase";
@@ -33,9 +28,7 @@ import { db } from "../../../utils/firebase";
 export default function EditInspectionScreen() {
   const router = useRouter();
   const theme = useAppTheme();
-  const { inspectionId, hiveId } = useLocalSearchParams<{
-    inspectionId?: string; hiveId?: string;
-  }>();
+  const { inspectionId, hiveId } = useLocalSearchParams<{ inspectionId?: string; hiveId?: string }>();
 
   const resolvedInspectionId = inspectionId ? String(inspectionId) : "";
   const resolvedHiveId = hiveId ? String(hiveId) : "";
@@ -84,35 +77,17 @@ export default function EditInspectionScreen() {
     if (!result.canceled) setPhotoUris((prev) => [...prev, result.assets[0].uri]);
   };
 
-  const removePhoto = (uri: string) =>
-    setPhotoUris((prev) => prev.filter((p) => p !== uri));
+  const removePhoto = (uri: string) => setPhotoUris((prev) => prev.filter((p) => p !== uri));
 
-  /** Platform-aware post-save navigation prompt */
   const showSavePrompt = () => {
     if (Platform.OS === "web") {
-      const goHome = window.confirm(
-        "Inspection saved! 🐝\n\nClick OK to go Home, or Cancel to view the hive."
-      );
-      if (goHome) {
-        router.replace("/hive");
-      } else {
-        router.replace({ pathname: "/hive/[id]", params: { id: resolvedHiveId } });
-      }
+      const goHome = window.confirm("Inspection saved! 🐝\n\nClick OK to go Home, or Cancel to view the hive.");
+      if (goHome) { router.replace("/hive"); } else { router.replace({ pathname: "/hive/[id]", params: { id: resolvedHiveId } }); }
     } else {
-      Alert.alert(
-        "Inspection saved! 🐝",
-        "Where would you like to go?",
-        [
-          {
-            text: "View Hive",
-            onPress: () => router.replace({ pathname: "/hive/[id]", params: { id: resolvedHiveId } }),
-          },
-          {
-            text: "Go Home",
-            onPress: () => router.replace("/hive"),
-          },
-        ]
-      );
+      Alert.alert("Inspection saved! 🐝", "Where would you like to go?", [
+        { text: "View Hive", onPress: () => router.replace({ pathname: "/hive/[id]", params: { id: resolvedHiveId } }) },
+        { text: "Go Home", onPress: () => router.replace("/hive") },
+      ]);
     }
   };
 
@@ -120,10 +95,9 @@ export default function EditInspectionScreen() {
     if (saving) return;
     try {
       setSaving(true);
-      await updateDoc(
-        doc(db, "hives", resolvedHiveId, "inspections", resolvedInspectionId),
-        { queen, brood, notes, photoUris, updatedAt: new Date() }
-      );
+      await updateDoc(doc(db, "hives", resolvedHiveId, "inspections", resolvedInspectionId), {
+        queen, brood, notes, photoUris, updatedAt: new Date()
+      });
       showSavePrompt();
     } catch (e) {
       Alert.alert("Error saving");
@@ -143,8 +117,7 @@ export default function EditInspectionScreen() {
     Alert.alert("Delete Inspection?", "This cannot be undone.", [
       { text: "Cancel", style: "cancel" },
       {
-        text: "Delete",
-        style: "destructive",
+        text: "Delete", style: "destructive",
         onPress: async () => {
           await deleteDoc(doc(db, "hives", resolvedHiveId, "inspections", resolvedInspectionId));
           router.replace("/hive");
@@ -172,50 +145,37 @@ export default function EditInspectionScreen() {
 
         <Text style={S.label}>👑 Queen Status</Text>
         <TextInput
-          value={queen}
-          onChangeText={setQueen}
+          value={queen} onChangeText={setQueen}
           placeholder="e.g. seen, eggs present, not found"
           placeholderTextColor={theme.textMuted}
-          style={S.input}
-          returnKeyType="next"
-          blurOnSubmit={false}
+          style={S.input} returnKeyType="next" blurOnSubmit={false}
           onSubmitEditing={() => broodRef.current?.focus()}
         />
 
         <Text style={S.label}>🐛 Brood Pattern</Text>
         <TextInput
           ref={broodRef}
-          value={brood}
-          onChangeText={setBrood}
+          value={brood} onChangeText={setBrood}
           placeholder="e.g. strong, weak, spotty"
           placeholderTextColor={theme.textMuted}
-          style={S.input}
-          returnKeyType="next"
-          blurOnSubmit={false}
+          style={S.input} returnKeyType="next" blurOnSubmit={false}
           onSubmitEditing={() => notesRef.current?.focus()}
         />
 
         <Text style={S.label}>📝 Notes</Text>
         <TextInput
           ref={notesRef}
-          value={notes}
-          onChangeText={setNotes}
-          multiline
-          placeholder="Inspection notes..."
+          value={notes} onChangeText={setNotes}
+          multiline placeholder="Inspection notes..."
           placeholderTextColor={theme.textMuted}
           style={[S.input, S.notesInput]}
-          returnKeyType="done"
-          onSubmitEditing={handleSave}
+          returnKeyType="done" onSubmitEditing={handleSave}
         />
 
         <Text style={S.label}>📷 Photos</Text>
         <View style={S.photoButtons}>
-          <Pressable style={S.photoButton} onPress={takePhoto}>
-            <Text style={S.photoButtonText}>📷 Camera</Text>
-          </Pressable>
-          <Pressable style={S.photoButton} onPress={pickPhoto}>
-            <Text style={S.photoButtonText}>🖼️ Gallery</Text>
-          </Pressable>
+          <Pressable style={S.photoButton} onPress={takePhoto}><Text style={S.photoButtonText}>📷 Camera</Text></Pressable>
+          <Pressable style={S.photoButton} onPress={pickPhoto}><Text style={S.photoButtonText}>🖼️ Gallery</Text></Pressable>
         </View>
 
         {photoUris.length > 0 && (
@@ -229,10 +189,7 @@ export default function EditInspectionScreen() {
           </View>
         )}
 
-        <Pressable
-          style={[S.saveButton, saving && S.disabledButton]}
-          onPress={handleSave}
-        >
+        <Pressable style={[S.saveButton, saving && S.disabledButton]} onPress={handleSave}>
           <Text style={S.saveText}>{saving ? "Saving..." : "Save Changes"}</Text>
         </Pressable>
 

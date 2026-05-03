@@ -2,11 +2,6 @@
  * app/hive/add.tsx
  *
  * Add Hive Screen — creates a new hive document in Firestore.
- *
- * UX improvements:
- *  - Enter key moves between fields, submits on last field
- *  - After saving, user chooses to view hive or go home
- *  - Platform-aware save prompt (Alert on native, confirm on web)
  */
 
 import { useRouter } from "expo-router";
@@ -16,12 +11,12 @@ import {
   Alert,
   Platform,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import NavBar from "../../components/NavBar";
 import { useAuthContext } from "../../context/AuthContext";
 import { useAppTheme } from "../../hooks/useAppTheme";
@@ -40,7 +35,6 @@ export default function AddHiveScreen() {
   const locationRef = useRef<TextInput>(null);
   const notesRef = useRef<TextInput>(null);
 
-  /** Platform-aware post-save navigation prompt */
   const showSavePrompt = (hiveId: string) => {
     if (Platform.OS === "web") {
       const goHome = window.confirm(
@@ -56,14 +50,8 @@ export default function AddHiveScreen() {
         "Hive saved! 🐝",
         "Where would you like to go?",
         [
-          {
-            text: "View Hive",
-            onPress: () => router.replace({ pathname: "/hive/[id]", params: { id: hiveId } }),
-          },
-          {
-            text: "Go Home",
-            onPress: () => router.replace("/hive"),
-          },
+          { text: "View Hive", onPress: () => router.replace({ pathname: "/hive/[id]", params: { id: hiveId } }) },
+          { text: "Go Home", onPress: () => router.replace("/hive") },
         ]
       );
     }
@@ -73,7 +61,6 @@ export default function AddHiveScreen() {
     if (saving) return;
     if (!name.trim()) { Alert.alert("Missing name", "Please enter a hive name."); return; }
     if (!user) { Alert.alert("Not signed in", "Please sign in to add a hive."); return; }
-
     try {
       setSaving(true);
       const docRef = await addDoc(collection(db, "hives"), {

@@ -20,13 +20,13 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useAppTheme } from "../hooks/useAppTheme";
 import {
   loginWithEmail,
@@ -37,7 +37,6 @@ import {
 
 const GOOGLE_CLIENT_ID = "950068293878-6i3gj20ov1osm2knc7lh8kt3road0gu7.apps.googleusercontent.com";
 
-/** Translates Firebase auth error codes to friendly messages */
 function getFriendlyError(error: any): string {
   const code = error?.code || "";
   switch (code) {
@@ -161,8 +160,6 @@ export default function Login() {
         style={{ flex: 1 }}
       >
         <ScrollView contentContainerStyle={S.content}>
-
-          {/* Logo */}
           <View style={S.header}>
             <Text style={S.logo}>🐝</Text>
             <Text style={S.title}>Beehive Pro</Text>
@@ -173,10 +170,7 @@ export default function Login() {
             </Text>
           </View>
 
-          {/* Form */}
           <View style={S.form}>
-
-            {/* Email */}
             <Text style={S.label}>📧 Email</Text>
             <TextInput
               placeholder="you@example.com"
@@ -189,7 +183,6 @@ export default function Login() {
               returnKeyType="next"
             />
 
-            {/* Password with show/hide toggle */}
             {mode !== "reset" && (
               <>
                 <Text style={S.label}>🔒 Password</Text>
@@ -214,7 +207,6 @@ export default function Login() {
               </>
             )}
 
-            {/* Primary action */}
             {mode === "login" && (
               <Pressable
                 onPress={handleLogin}
@@ -251,7 +243,6 @@ export default function Login() {
               </Pressable>
             )}
 
-            {/* Google sign-in */}
             {mode !== "reset" && (
               <>
                 <View style={S.dividerRow}>
@@ -259,7 +250,6 @@ export default function Login() {
                   <Text style={S.dividerText}>or</Text>
                   <View style={S.dividerLine} />
                 </View>
-
                 <Pressable
                   onPress={() => promptAsync()}
                   disabled={!request || loading}
@@ -270,7 +260,6 @@ export default function Login() {
               </>
             )}
 
-            {/* Mode switchers */}
             <View style={S.switchRow}>
               {mode === "login" && (
                 <>
@@ -319,8 +308,6 @@ function makeStyles(theme: ReturnType<typeof useAppTheme>) {
       borderWidth: 1,
       borderColor: theme.border,
     },
-
-    // Password row with show/hide toggle
     passwordRow: {
       flexDirection: "row",
       alignItems: "center",
@@ -335,12 +322,8 @@ function makeStyles(theme: ReturnType<typeof useAppTheme>) {
       padding: 14,
       fontSize: theme.fontMD,
     },
-    eyeButton: {
-      paddingHorizontal: 14,
-      paddingVertical: 14,
-    },
+    eyeButton: { paddingHorizontal: 14, paddingVertical: 14 },
     eyeText: { fontSize: 18 },
-
     primaryButton: {
       backgroundColor: theme.honey,
       padding: 16,
@@ -349,12 +332,7 @@ function makeStyles(theme: ReturnType<typeof useAppTheme>) {
       marginTop: theme.spaceLG,
     },
     primaryButtonText: { color: theme.bg, fontWeight: "900", fontSize: theme.fontMD },
-    dividerRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 12,
-      marginTop: theme.spaceMD,
-    },
+    dividerRow: { flexDirection: "row", alignItems: "center", gap: 12, marginTop: theme.spaceMD },
     dividerLine: { flex: 1, height: 1, backgroundColor: theme.border },
     dividerText: { color: theme.textMuted, fontSize: theme.fontXS },
     googleButton: {
@@ -368,16 +346,7 @@ function makeStyles(theme: ReturnType<typeof useAppTheme>) {
     },
     googleButtonText: { color: theme.textPrimary, fontWeight: "900", fontSize: theme.fontMD },
     disabledButton: { backgroundColor: theme.textMuted },
-    switchRow: {
-      marginTop: theme.spaceLG,
-      gap: 12,
-      alignItems: "center",
-    },
-    switchText: {
-      color: theme.honey,
-      fontSize: theme.fontSM,
-      fontWeight: "700",
-      textDecorationLine: "underline",
-    },
+    switchRow: { marginTop: theme.spaceLG, gap: 12, alignItems: "center" },
+    switchText: { color: theme.honey, fontSize: theme.fontSM, fontWeight: "700", textDecorationLine: "underline" },
   });
 }

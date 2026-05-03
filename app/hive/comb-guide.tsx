@@ -21,12 +21,12 @@ import {
   NativeSyntheticEvent,
   Platform,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import NavBar from "../../components/NavBar";
 import { useSettingsContext } from "../../context/SettingsContext";
 import { useAppTheme } from "../../hooks/useAppTheme";
@@ -62,7 +62,6 @@ export default function CombGuideScreen() {
 
   const cardPositions = useRef<Record<string, { top: number; bottom: number }>>({});
 
-  // One pulse animation per card
   const pulseAnims = useRef<Record<string, Animated.Value>>(
     Object.fromEntries(FINDINGS.map((f) => [f.id, new Animated.Value(1)]))
   ).current;
@@ -89,7 +88,6 @@ export default function CombGuideScreen() {
     pulseAnims[id].setValue(1);
   };
 
-  // Start pulse animations in beginner mode
   const pulsesStarted = useRef(false);
   useEffect(() => {
     if (isBeginner && !pulsesStarted.current) {
@@ -124,7 +122,6 @@ export default function CombGuideScreen() {
     });
   };
 
-  // Auto-expand card centered in viewport when in beginner mode
   const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     if (!isBeginner) return;
     const y = e.nativeEvent.contentOffset.y;
@@ -179,7 +176,6 @@ export default function CombGuideScreen() {
           Tap everything you see. Tap "What am I looking at?" to learn how to identify it.
         </Text>
 
-        {/* Beginner mode badge */}
         {isBeginner && (
           <View style={S.learningBadge}>
             <Text style={S.learningBadgeText}>
@@ -188,7 +184,6 @@ export default function CombGuideScreen() {
           </View>
         )}
 
-        {/* Selection count banner */}
         {selected.size > 0 && (
           <View style={S.selectionBanner}>
             <Text style={S.selectionText}>
@@ -200,7 +195,6 @@ export default function CombGuideScreen() {
           </View>
         )}
 
-        {/* Finding cards */}
         {FINDINGS.map((finding) => {
           const isSelected = selected.has(finding.id);
           const isExpanded = expanded.has(finding.id);
@@ -224,7 +218,6 @@ export default function CombGuideScreen() {
                 isSelected && S.cardSelected,
                 isExpanded && isBeginner && S.cardActive,
               ]}>
-                {/* Select tap area */}
                 <Pressable onPress={() => toggleFinding(finding.id)}>
                   <View style={S.cardHeader}>
                     <Text style={S.cardEmoji}>{finding.emoji}</Text>
@@ -245,7 +238,6 @@ export default function CombGuideScreen() {
 
                 <View style={S.divider} />
 
-                {/* Learn toggle */}
                 <Pressable onPress={() => toggleExpanded(finding.id)} style={S.learnButton}>
                   <Text style={S.learnButtonText}>
                     {isExpanded ? "▼ Hide guide" : "👁 What am I looking at?"}
@@ -257,7 +249,6 @@ export default function CombGuideScreen() {
                   )}
                 </Pressable>
 
-                {/* Expanded learn content */}
                 {isExpanded && (
                   <View style={S.learnContent}>
                     <View style={S.learnSection}>
@@ -281,7 +272,6 @@ export default function CombGuideScreen() {
           );
         })}
 
-        {/* Submit button */}
         <Pressable
           onPress={handleSubmit}
           disabled={selected.size === 0}
@@ -304,43 +294,12 @@ function makeStyles(theme: ReturnType<typeof useAppTheme>) {
     content: { padding: theme.spaceMD, paddingBottom: 50 },
     title: { color: theme.textPrimary, fontSize: theme.fontLG, fontWeight: "900", marginBottom: 4 },
     subtitle: { color: theme.textMuted, fontSize: theme.fontSM, marginBottom: theme.spaceMD, lineHeight: 20 },
-
-    // Beginner badge
-    learningBadge: {
-      backgroundColor: theme.bgCardAlt,
-      borderWidth: 1,
-      borderColor: theme.honey,
-      padding: theme.spaceSM,
-      borderRadius: theme.radiusMD,
-      marginBottom: theme.spaceMD,
-      alignItems: "center",
-    },
+    learningBadge: { backgroundColor: theme.bgCardAlt, borderWidth: 1, borderColor: theme.honey, padding: theme.spaceSM, borderRadius: theme.radiusMD, marginBottom: theme.spaceMD, alignItems: "center" },
     learningBadgeText: { color: theme.honey, fontWeight: "800", fontSize: theme.fontXS },
-
-    // Selection banner
-    selectionBanner: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
-      backgroundColor: theme.bgCardAlt,
-      borderWidth: 1,
-      borderColor: theme.honey,
-      padding: theme.spaceMD,
-      borderRadius: theme.radiusMD,
-      marginBottom: theme.spaceMD,
-    },
+    selectionBanner: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", backgroundColor: theme.bgCardAlt, borderWidth: 1, borderColor: theme.honey, padding: theme.spaceMD, borderRadius: theme.radiusMD, marginBottom: theme.spaceMD },
     selectionText: { color: theme.honey, fontWeight: "800", fontSize: theme.fontSM },
-    clearButton: {
-      backgroundColor: theme.bgCard,
-      paddingVertical: 6,
-      paddingHorizontal: 12,
-      borderRadius: theme.radiusSM,
-      borderWidth: 1,
-      borderColor: theme.border,
-    },
+    clearButton: { backgroundColor: theme.bgCard, paddingVertical: 6, paddingHorizontal: 12, borderRadius: theme.radiusSM, borderWidth: 1, borderColor: theme.border },
     clearText: { color: theme.textSecondary, fontSize: theme.fontXS, fontWeight: "700" },
-
-    // Card wrapper for pulse animation
     cardWrapper: {
       marginBottom: 12,
       borderRadius: theme.radiusLG,
@@ -352,98 +311,29 @@ function makeStyles(theme: ReturnType<typeof useAppTheme>) {
         elevation: 6,
       } : {}),
     },
-
-    // Cards
-    card: {
-      backgroundColor: theme.bgCard,
-      borderRadius: theme.radiusLG,
-      borderWidth: 2,
-      borderColor: theme.border,
-      overflow: "hidden",
-    },
+    card: { backgroundColor: theme.bgCard, borderRadius: theme.radiusLG, borderWidth: 2, borderColor: theme.border, overflow: "hidden" },
     cardSelected: { borderColor: theme.honey, backgroundColor: theme.bgCardAlt },
     cardActive: { borderColor: theme.honeyLight, borderWidth: 2 },
-    cardHeader: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 10,
-      padding: theme.spaceMD,
-      paddingBottom: 8,
-    },
+    cardHeader: { flexDirection: "row", alignItems: "center", gap: 10, padding: theme.spaceMD, paddingBottom: 8 },
     cardEmoji: { fontSize: 28 },
     cardTitle: { flex: 1, color: theme.honey, fontSize: theme.fontMD, fontWeight: "900" },
     cardTitleSelected: { color: theme.honeyLight },
-    checkBadge: {
-      width: 28, height: 28, borderRadius: 14,
-      backgroundColor: theme.honey,
-      justifyContent: "center", alignItems: "center",
-    },
+    checkBadge: { width: 28, height: 28, borderRadius: 14, backgroundColor: theme.honey, justifyContent: "center", alignItems: "center" },
     checkText: { color: theme.bg, fontWeight: "900", fontSize: theme.fontSM },
-    cardText: {
-      color: theme.textSecondary,
-      fontSize: theme.fontSM,
-      lineHeight: 20,
-      paddingHorizontal: theme.spaceMD,
-    },
-    tapHint: {
-      color: theme.textMuted,
-      fontSize: theme.fontXS,
-      fontWeight: "700",
-      paddingHorizontal: theme.spaceMD,
-      paddingBottom: theme.spaceMD,
-      marginTop: 8,
-    },
-
+    cardText: { color: theme.textSecondary, fontSize: theme.fontSM, lineHeight: 20, paddingHorizontal: theme.spaceMD },
+    tapHint: { color: theme.textMuted, fontSize: theme.fontXS, fontWeight: "700", paddingHorizontal: theme.spaceMD, paddingBottom: theme.spaceMD, marginTop: 8 },
     divider: { height: 1, backgroundColor: theme.border },
-
-    // Learn button
-    learnButton: {
-      padding: theme.spaceMD,
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 10,
-    },
+    learnButton: { padding: theme.spaceMD, flexDirection: "row", alignItems: "center", gap: 10 },
     learnButtonText: { color: theme.honeyLight, fontWeight: "800", fontSize: theme.fontSM },
-    learnHintBadge: {
-      backgroundColor: theme.honey,
-      paddingVertical: 2,
-      paddingHorizontal: 8,
-      borderRadius: 20,
-    },
+    learnHintBadge: { backgroundColor: theme.honey, paddingVertical: 2, paddingHorizontal: 8, borderRadius: 20 },
     learnHintText: { color: theme.bg, fontSize: theme.fontXS, fontWeight: "800" },
-
-    // Learn content
-    learnContent: {
-      backgroundColor: theme.bg,
-      borderTopWidth: 1,
-      borderTopColor: theme.border,
-      padding: theme.spaceMD,
-      gap: 14,
-    },
+    learnContent: { backgroundColor: theme.bg, borderTopWidth: 1, borderTopColor: theme.border, padding: theme.spaceMD, gap: 14 },
     learnSection: { gap: 6 },
     learnSectionTitle: { color: theme.textPrimary, fontWeight: "900", fontSize: theme.fontSM },
     learnSectionText: { color: theme.textSecondary, fontSize: theme.fontSM, lineHeight: 22 },
-    mistakeSection: {
-      backgroundColor: theme.warningBg,
-      padding: theme.spaceMD,
-      borderRadius: theme.radiusSM,
-      borderWidth: 1,
-      borderColor: theme.warning,
-    },
-
-    // Submit
-    submitButton: {
-      backgroundColor: theme.honey,
-      padding: 18,
-      borderRadius: theme.radiusMD,
-      alignItems: "center",
-      marginTop: theme.spaceMD,
-    },
-    disabledButton: {
-      backgroundColor: theme.bgCardAlt,
-      borderWidth: 1,
-      borderColor: theme.border,
-    },
+    mistakeSection: { backgroundColor: theme.warningBg, padding: theme.spaceMD, borderRadius: theme.radiusSM, borderWidth: 1, borderColor: theme.warning },
+    submitButton: { backgroundColor: theme.honey, padding: 18, borderRadius: theme.radiusMD, alignItems: "center", marginTop: theme.spaceMD },
+    disabledButton: { backgroundColor: theme.bgCardAlt, borderWidth: 1, borderColor: theme.border },
     submitText: { color: theme.bg, fontWeight: "900", fontSize: theme.fontMD },
     disabledText: { color: theme.textMuted },
   });

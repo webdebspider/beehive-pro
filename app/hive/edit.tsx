@@ -2,11 +2,6 @@
  * app/hive/edit.tsx
  *
  * Edit Hive Screen — loads and updates an existing hive document.
- *
- * UX improvements:
- *  - Enter key moves between fields, submits on last field
- *  - After saving, user chooses to view hive or go home
- *  - Platform-aware save prompt (Alert on native, confirm on web)
  */
 
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -17,13 +12,13 @@ import {
   Alert,
   Platform,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import NavBar from "../../components/NavBar";
 import { useAppTheme } from "../../hooks/useAppTheme";
 import { db } from "../../utils/firebase";
@@ -64,7 +59,6 @@ export default function EditHiveScreen() {
     loadHive();
   }, [hiveId]);
 
-  /** Platform-aware post-save navigation prompt */
   const showSavePrompt = () => {
     if (Platform.OS === "web") {
       const goHome = window.confirm(
@@ -80,14 +74,8 @@ export default function EditHiveScreen() {
         "Hive saved! 🐝",
         "Where would you like to go?",
         [
-          {
-            text: "View Hive",
-            onPress: () => router.replace({ pathname: "/hive/[id]", params: { id: hiveId } }),
-          },
-          {
-            text: "Go Home",
-            onPress: () => router.replace("/hive"),
-          },
+          { text: "View Hive", onPress: () => router.replace({ pathname: "/hive/[id]", params: { id: hiveId } }) },
+          { text: "Go Home", onPress: () => router.replace("/hive") },
         ]
       );
     }
@@ -130,9 +118,7 @@ export default function EditHiveScreen() {
 
   const handleDelete = () => {
     if (Platform.OS === "web") {
-      if (window.confirm("Delete this hive and all its inspections? This cannot be undone.")) {
-        doDelete();
-      }
+      if (window.confirm("Delete this hive and all its inspections? This cannot be undone.")) doDelete();
       return;
     }
     Alert.alert("Delete hive?", "This cannot be undone.", [
