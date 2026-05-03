@@ -7,6 +7,8 @@
  *  - Email/password login and registration
  *  - Google one-tap sign-in via expo-auth-session
  *  - Password reset via email
+ *  - Show/hide password toggle
+ *  - Friendly error messages
  *  - Redirects to /hive on successful auth
  */
 
@@ -35,23 +37,47 @@ import {
 
 const GOOGLE_CLIENT_ID = "950068293878-6i3gj20ov1osm2knc7lh8kt3road0gu7.apps.googleusercontent.com";
 
+/** Translates Firebase auth error codes to friendly messages */
+function getFriendlyError(error: any): string {
+  const code = error?.code || "";
+  switch (code) {
+    case "auth/invalid-email":
+      return "That doesn't look like a valid email address.";
+    case "auth/user-not-found":
+      return "No account found with that email. Try creating one!";
+    case "auth/wrong-password":
+      return "Incorrect password. Try again or reset your password.";
+    case "auth/invalid-credential":
+      return "Incorrect email or password. Please try again.";
+    case "auth/email-already-in-use":
+      return "An account with that email already exists. Try signing in!";
+    case "auth/weak-password":
+      return "Password must be at least 6 characters.";
+    case "auth/too-many-requests":
+      return "Too many failed attempts. Please wait a moment and try again.";
+    case "auth/network-request-failed":
+      return "Network error. Check your connection and try again.";
+    default:
+      return "Something went wrong. Please try again.";
+  }
+}
+
 export default function Login() {
   const router = useRouter();
   const theme = useAppTheme();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState<"login" | "register" | "reset">("login");
 
-  // Google auth session
   const [request, response, promptAsync] = Google.useAuthRequest({
     clientId: GOOGLE_CLIENT_ID,
     iosClientId: GOOGLE_CLIENT_ID,
     androidClientId: GOOGLE_CLIENT_ID,
   });
 
-  // Handle Google sign-in response
   useEffect(() => {
     if (response?.type === "success") {
       const { id_token } = response.params;
@@ -65,7 +91,7 @@ export default function Login() {
       await loginWithGoogleCredential(idToken);
       router.replace("/hive");
     } catch (e: any) {
-      Alert.alert("Google sign-in failed", e.message);
+      Alert.alert("Google sign-in failed", getFriendlyError(e));
     } finally {
       setLoading(false);
     }
@@ -82,7 +108,7 @@ export default function Login() {
       await loginWithEmail(email.trim(), password);
       router.replace("/hive");
     } catch (e: any) {
-      Alert.alert("Login failed", e.message);
+      Alert.alert("Login failed", getFriendlyError(e));
     } finally {
       setLoading(false);
     }
@@ -103,7 +129,7 @@ export default function Login() {
       await registerWithEmail(email.trim(), password);
       router.replace("/hive");
     } catch (e: any) {
-      Alert.alert("Registration failed", e.message);
+      Alert.alert("Registration failed", getFriendlyError(e));
     } finally {
       setLoading(false);
     }
@@ -117,10 +143,10 @@ export default function Login() {
     try {
       setLoading(true);
       await resetPassword(email.trim());
-      Alert.alert("Email sent", "Check your inbox for a password reset link.");
+      Alert.alert("Email sent! 📧", "Check your inbox for a password reset link.");
       setMode("login");
     } catch (e: any) {
-      Alert.alert("Reset failed", e.message);
+      Alert.alert("Reset failed", getFriendlyError(e));
     } finally {
       setLoading(false);
     }
@@ -149,6 +175,8 @@ export default function Login() {
 
           {/* Form */}
           <View style={S.form}>
+
+            {/* Email */}
             <Text style={S.label}>📧 Email</Text>
             <TextInput
               placeholder="you@example.com"
@@ -158,23 +186,35 @@ export default function Login() {
               autoCapitalize="none"
               keyboardType="email-address"
               style={S.input}
+              returnKeyType="next"
             />
 
+            {/* Password with show/hide toggle */}
             {mode !== "reset" && (
               <>
                 <Text style={S.label}>🔒 Password</Text>
-                <TextInput
-                  placeholder={mode === "register" ? "At least 6 characters" : "Your password"}
-                  placeholderTextColor={theme.textMuted}
-                  secureTextEntry
-                  value={password}
-                  onChangeText={setPassword}
-                  style={S.input}
-                />
+                <View style={S.passwordRow}>
+                  <TextInput
+                    placeholder={mode === "register" ? "At least 6 characters" : "Your password"}
+                    placeholderTextColor={theme.textMuted}
+                    secureTextEntry={!showPassword}
+                    value={password}
+                    onChangeText={setPassword}
+                    style={S.passwordInput}
+                    returnKeyType="done"
+                    onSubmitEditing={mode === "login" ? handleLogin : handleRegister}
+                  />
+                  <Pressable
+                    onPress={() => setShowPassword((prev) => !prev)}
+                    style={S.eyeButton}
+                  >
+                    <Text style={S.eyeText}>{showPassword ? "🙈" : "👁"}</Text>
+                  </Pressable>
+                </View>
               </>
             )}
 
-            {/* Primary action button */}
+            {/* Primary action */}
             {mode === "login" && (
               <Pressable
                 onPress={handleLogin}
@@ -279,6 +319,28 @@ function makeStyles(theme: ReturnType<typeof useAppTheme>) {
       borderWidth: 1,
       borderColor: theme.border,
     },
+
+    // Password row with show/hide toggle
+    passwordRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: theme.bgInput,
+      borderRadius: theme.radiusMD,
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+    passwordInput: {
+      flex: 1,
+      color: theme.textPrimary,
+      padding: 14,
+      fontSize: theme.fontMD,
+    },
+    eyeButton: {
+      paddingHorizontal: 14,
+      paddingVertical: 14,
+    },
+    eyeText: { fontSize: 18 },
+
     primaryButton: {
       backgroundColor: theme.honey,
       padding: 16,
