@@ -11,17 +11,17 @@ import {
   ActivityIndicator,
   Image,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import NavBar from "../../components/NavBar";
 import OfflineBanner from "../../components/OfflineBanner";
 import { useAppTheme } from "../../hooks/useAppTheme";
 import { db } from "../../utils/firebase";
-import { processSyncQueue } from "../../utils/syncQueue";
+import { processQueue } from "../../utils/syncQueue";
 import { useNetworkStatus } from "../../utils/useNetworkStatus";
 
 type Inspection = {
@@ -41,7 +41,7 @@ export default function HiveDetailScreen() {
 
   useEffect(() => { loadInspections(); }, [hiveId]);
   useEffect(() => {
-    if (isOnline) processSyncQueue((msg) => console.log("SYNC:", msg));
+    if (isOnline) processQueue((remaining: number) => console.log("SYNC remaining:", remaining));
   }, [isOnline]);
 
   const loadInspections = async () => {
@@ -84,18 +84,12 @@ export default function HiveDetailScreen() {
             <Pressable style={S.quickButton} onPress={() => router.push({ pathname: "/hive/inspection/quick", params: { id: hiveId } })}>
               <Text style={S.quickButtonText}>⚡ Quick</Text>
             </Pressable>
-            {/* Comb Guide button */}
-<Pressable
-  style={S.combButton}
-  onPress={() =>
-    router.push({
-      pathname: "/hive/comb-guide",
-      params: { id: hiveId },
-    })
-  }
->
-  <Text style={S.combButtonText}>🔍 Comb</Text>
-</Pressable>  
+            <Pressable
+              style={S.combButton}
+              onPress={() => router.push({ pathname: "/hive/comb-guide", params: { id: hiveId } })}
+            >
+              <Text style={S.combButtonText}>🔍 Comb</Text>
+            </Pressable>
             <Pressable style={S.addButton} onPress={() => router.push({ pathname: "/hive/inspection/add", params: { id: hiveId } })}>
               <Text style={S.addButtonText}>+ Add</Text>
             </Pressable>
@@ -152,16 +146,8 @@ function makeStyles(theme: ReturnType<typeof useAppTheme>) {
     titleButtons: { flexDirection: "row", gap: 8 },
     quickButton: { backgroundColor: theme.bgCardAlt, paddingVertical: 8, paddingHorizontal: 14, borderRadius: theme.radiusSM, borderWidth: 1, borderColor: theme.honey },
     quickButtonText: { color: theme.honey, fontWeight: "900", fontSize: theme.fontSM },
-    combButton: {
-      backgroundColor: theme.bgCardAlt,
-      paddingVertical: 8,
-      paddingHorizontal: 14,
-      borderRadius: theme.radiusSM,
-      borderWidth: 1,
-      borderColor: theme.honeyLight,
-},
+    combButton: { backgroundColor: theme.bgCardAlt, paddingVertical: 8, paddingHorizontal: 14, borderRadius: theme.radiusSM, borderWidth: 1, borderColor: theme.honeyLight },
     combButtonText: { color: theme.honeyLight, fontWeight: "900", fontSize: theme.fontSM },
-   
     addButton: { backgroundColor: theme.green, paddingVertical: 8, paddingHorizontal: 16, borderRadius: theme.radiusSM },
     addButtonText: { color: "#fff", fontWeight: "900", fontSize: theme.fontSM },
     emptyBox: { alignItems: "center", marginTop: 40 },
@@ -177,5 +163,5 @@ function makeStyles(theme: ReturnType<typeof useAppTheme>) {
     photoStrip: { marginTop: 8, marginBottom: 8 },
     photo: { width: 90, height: 90, borderRadius: theme.radiusSM, marginRight: 8 },
     editHint: { color: theme.textMuted, fontSize: theme.fontXS, textAlign: "right", marginTop: 4 },
-   });
+  });
 }
