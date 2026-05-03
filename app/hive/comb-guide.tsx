@@ -17,6 +17,7 @@
  *
  * Android fix: uses expo-image instead of RN Image — handles 302 redirects
  * from commons.wikimedia.org/wiki/Special:FilePath/ correctly on Android.
+ *just to be able to do a commit
  */
 
 import { Image } from "expo-image";
