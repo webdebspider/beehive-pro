@@ -50,7 +50,7 @@ const FINDINGS: Finding[] = [
     whatToLookFor: "Look for tiny white rice-grain shapes standing straight up in the bottom of empty-looking cells. They are about 1.5mm long — very small! Tilt the frame so sunlight shines across the cells at an angle. Fresh eggs (1 day old) stand perfectly upright. Older eggs (2-3 days) lean to the side.",
     whereToLook: "Look in the center of the brood area, in cells that appear empty at first glance. The egg is easier to see against a dark cell background. Young bees and freshly drawn comb make it harder to spot them.",
     commonMistake: "Many beginners mistake pollen or debris for eggs. Eggs are perfectly uniform white grains, always one per cell, always at the very bottom.",
-    referenceImage: "https://commons.wikimedia.org/wiki/Special:FilePath/Italian_honeybee_eggs_and_larvae.jpg?width=400",
+    referenceImage: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d6/Italian_honeybee_eggs_and_larvae.jpg/400px-Italian_honeybee_eggs_and_larvae.jpg",
     imageCaption: "Italian honeybee eggs and young larvae in cells — tiny white grains standing upright.",
   },
   {
@@ -60,7 +60,7 @@ const FINDINGS: Finding[] = [
     whatToLookFor: "Look for shiny, pearly-white grubs curled in a C-shape at the bottom of cells. They should be floating in a small pool of milky royal jelly. Healthy larvae are bright white and glistening — never brown or dried out.",
     whereToLook: "Larvae are found in the central brood area, usually surrounded by capped brood on the outside and eggs closer to the center.",
     commonMistake: "Discolored or twisted larvae are a warning sign. Healthy larvae should always look wet and white, never dry, brown, or melted-looking.",
-    referenceImage: "https://commons.wikimedia.org/wiki/Special:FilePath/Italian_honeybee_brood_frame_from_Langstroth_hive.jpg?width=400",
+    referenceImage: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3b/Italian_honeybee_brood_frame_from_Langstroth_hive.jpg/400px-Italian_honeybee_brood_frame_from_Langstroth_hive.jpg",
     imageCaption: "A full brood frame showing larvae at various stages alongside capped brood.",
   },
   {
@@ -70,7 +70,7 @@ const FINDINGS: Finding[] = [
     whatToLookFor: "Look for cells capped with a slightly raised, smooth white or tan wax cap. Hold the frame flat — ripe capped honey won't drip out.",
     whereToLook: "Honey is stored above and around the brood nest, especially in the top corners of the frame.",
     commonMistake: "Honey caps look similar to brood caps but are flatter and lighter colored. Brood caps are slightly domed and darker tan/brown.",
-    referenceImage: "https://commons.wikimedia.org/wiki/Special:FilePath/Italian_honeybee_honey_frame_from_Langstroth_hive.jpg?width=400",
+    referenceImage: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1e/Italian_honeybee_honey_frame_from_Langstroth_hive.jpg/400px-Italian_honeybee_honey_frame_from_Langstroth_hive.jpg",
     imageCaption: "A honey frame full of capped honey cells — smooth, light wax caps covering stored honey.",
   },
   {
@@ -80,8 +80,8 @@ const FINDINGS: Finding[] = [
     whatToLookFor: "Look for cells packed with colorful powder — yellow, orange, red, green, or even purple. Pollen is packed tightly and has a rough, grainy texture.",
     whereToLook: "Pollen is stored in a ring around the brood area, between the brood and the honey.",
     commonMistake: "Don't confuse packed pollen with empty cells. Pollen cells look full and solid with color.",
-    referenceImage: "https://commons.wikimedia.org/wiki/Special:FilePath/Honeybee_landing_on_milkthistle02.jpg?width=400",
-    imageCaption: "Honeybee with full pollen baskets — the same colorful pollen you'll see packed into cells.",
+    referenceImage: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1b/Honeybee_landing_on_milkthistle02.jpg/400px-Honeybee_landing_on_milkthistle02.jpg",
+    imageCaption: "Honeybee with full pollen baskets — the same colorful pollen you'll see packed into comb cells.",
   },
   {
     id: "brood", emoji: "🟫", title: "Capped Brood",
@@ -90,7 +90,7 @@ const FINDINGS: Finding[] = [
     whatToLookFor: "Look for cells with slightly domed tan or brown wax caps. A healthy brood pattern is solid and compact — like a full sheet of caps with very few gaps.",
     whereToLook: "Capped brood fills the center of the frame in a roughly oval pattern.",
     commonMistake: "A few scattered empty cells in the brood pattern is normal. But if more than 1 in 10 cells are skipped, that may indicate a health issue.",
-    referenceImage: "https://commons.wikimedia.org/wiki/Special:FilePath/Beekeeping_langstroth_hive_frame.jpg?width=400",
+    referenceImage: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/Beekeeping_langstroth_hive_frame.jpg/400px-Beekeeping_langstroth_hive_frame.jpg",
     imageCaption: "A healthy brood frame — solid capped brood in the center, honey around the edges.",
   },
   {
@@ -100,7 +100,7 @@ const FINDINGS: Finding[] = [
     whatToLookFor: "Look for a brood pattern that has many random empty cells scattered throughout — like swiss cheese. Some caps may look sunken in or discolored.",
     whereToLook: "Compare the center of the brood frame to what you'd expect. A sparse or patchy pattern is the key sign.",
     commonMistake: "A brand new queen just starting to lay will have a spotty pattern that fills in — this is normal. Spotty brood in an established colony is more concerning.",
-    referenceImage: "https://commons.wikimedia.org/wiki/Special:FilePath/Maltese_honey_bee.JPG?width=400",
+    referenceImage: "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9d/Maltese_honey_bee.JPG/400px-Maltese_honey_bee.JPG",
     imageCaption: "Compare to a healthy frame — spotty brood has many random gaps between capped cells.",
   },
   {
@@ -110,7 +110,7 @@ const FINDINGS: Finding[] = [
     whatToLookFor: "Look for large peanut or acorn-shaped cells that hang vertically. They are much larger than regular cells — about 2-3cm long.",
     whereToLook: "Swarm cells are usually found on the bottom edges of frames. Supersedure cells are usually found in the middle of the frame face.",
     commonMistake: "Play cups (empty queen cups) are very common and do NOT mean the colony is about to swarm. Only cells containing an egg or larva are cause for action.",
-    referenceImage: "https://commons.wikimedia.org/wiki/Special:FilePath/Capped_emergency_supercedure_queen_cells_of_the_honey_bee.JPG?width=400",
+    referenceImage: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a8/Capped_emergency_supercedure_queen_cells_of_the_honey_bee.JPG/400px-Capped_emergency_supercedure_queen_cells_of_the_honey_bee.JPG",
     imageCaption: "Capped queen cells — large peanut-shaped cells, much bigger than regular worker cells.",
   },
   {
@@ -120,7 +120,7 @@ const FINDINGS: Finding[] = [
     whatToLookFor: "Sometimes what you see doesn't match any description — and that's completely normal for new beekeepers! Common confusing things include chalk-like white lumps, dark sunken caps, or unusual smells.",
     whereToLook: "When in doubt, note where on the frame you saw it, the color, texture, and smell if any.",
     commonMistake: "Never hesitate to mark something for mentor review. Catching a potential problem early is always better than waiting until you're sure.",
-    referenceImage: "https://commons.wikimedia.org/wiki/Special:FilePath/Western_Honey_Bees_and_Honeycomb.JPG?width=400",
+    referenceImage: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Western_Honey_Bees_and_Honeycomb.JPG/400px-Western_Honey_Bees_and_Honeycomb.JPG",
     imageCaption: "A typical active frame — lots going on at once, which can be confusing for new beekeepers.",
   },
 ];
@@ -278,7 +278,6 @@ export default function CombGuideScreen() {
             >
               <View style={[S.card, isSelected && S.cardSelected, isExpanded && isBeginner && S.cardActive]}>
 
-                {/* Select tap area */}
                 <Pressable onPress={() => toggleFinding(finding.id)}>
                   <View style={S.cardHeader}>
                     <Text style={S.cardEmoji}>{finding.emoji}</Text>
@@ -291,7 +290,6 @@ export default function CombGuideScreen() {
 
                 <View style={S.divider} />
 
-                {/* Learn toggle */}
                 <Pressable onPress={() => toggleExpanded(finding.id)} style={S.learnButton}>
                   <Text style={S.learnButtonText}>{isExpanded ? "▼ Hide guide" : "👁 What am I looking at?"}</Text>
                   {isBeginner && !isExpanded && (
@@ -299,7 +297,6 @@ export default function CombGuideScreen() {
                   )}
                 </Pressable>
 
-                {/* Expanded learn content */}
                 {isExpanded && (
                   <View style={S.learnContent}>
 
@@ -401,7 +398,7 @@ function makeStyles(theme: ReturnType<typeof useAppTheme>) {
     imageToggleButton: { backgroundColor: theme.bgCardAlt, borderWidth: 1, borderColor: theme.honeyLight, padding: theme.spaceSM, borderRadius: theme.radiusSM, alignItems: "center" },
     imageToggleText: { color: theme.honeyLight, fontWeight: "800", fontSize: theme.fontSM },
     imageContainer: { borderRadius: theme.radiusMD, overflow: "hidden", borderWidth: 1, borderColor: theme.border },
-    referenceImage: { width: "100%", height: 200 },
+    referenceImage: { width: "100%", height: 300 },
     imageCaption: { color: theme.textSecondary, fontSize: theme.fontXS, padding: theme.spaceSM, lineHeight: 18, backgroundColor: theme.bgCard },
     imageCredit: { color: theme.textMuted, fontSize: 10, padding: theme.spaceSM, paddingTop: 2, backgroundColor: theme.bgCard, fontStyle: "italic" },
 
