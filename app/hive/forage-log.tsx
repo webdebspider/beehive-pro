@@ -7,6 +7,7 @@
  *
  * Web: map preview hidden (react-native-maps is native only).
  * Saves to Firestore: forage/{entryId}
+ * plant note to save for a github push and commit
  */
 
 import * as Location from "expo-location";
