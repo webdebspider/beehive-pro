@@ -1,70 +1,62 @@
 /**
- * syncQueue.ts
+ * utils/syncQueue.ts
  *
- * Processes the offline upload queue when network connectivity is restored.
- * Retries all queued photo uploads and updates the corresponding Firestore docs.
+ * Processes the offline upload queue — retries photo uploads that were
+ * deferred because the device was offline.
  *
  * Flow:
- *  1. App detects network restored (via useNetworkStatus)
- *  2. processSyncQueue() is called
- *  3. Each queued item is retried via uploadInspectionPhotos
- *  4. On success → Firestore doc is updated + item removed from queue
- *  5. On failure → item stays in queue for next retry
+ *  1. useSyncQueue detects network restored → calls processQueue()
+ *  2. processQueue() iterates every item in the AsyncStorage queue
+ *  3. Each item: upload photos → update Firestore doc → remove from queue
+ *  4. Failed items stay in queue for the next sync attempt
  *
  * Used by:
- *  - app/hive/[id].tsx (wired via useEffect watching isOnline)
+ *  - utils/useSyncQueue.ts (auto-triggered on reconnect)
  */
 
 import { doc, updateDoc } from "firebase/firestore";
-import { db } from "./firebase";
 import { getQueue, removeFromQueue } from "./offlineQueue";
 import { uploadInspectionPhotos } from "./uploadInspectionPhotos";
+import { db } from "./firebase";
+
+export type SyncResult = { synced: number; failed: number };
 
 /**
- * Attempts to upload all items currently sitting in the offline queue.
- * Called automatically when the device comes back online.
- *
- * @param onProgress - optional callback to report status (e.g. for UI feedback)
+ * Processes all queued uploads.
+ * @param onProgress — called after each item with the number still remaining
  */
-export async function processSyncQueue(
-  onProgress?: (message: string) => void
-) {
+export async function processQueue(
+  onProgress?: (remaining: number) => void
+): Promise<SyncResult> {
   const queue = await getQueue();
+  if (queue.length === 0) return { synced: 0, failed: 0 };
 
-  if (queue.length === 0) {
-    return; // Nothing to sync
-  }
-
-  onProgress?.(`Syncing ${queue.length} pending upload(s)...`);
+  let synced = 0;
+  let failed = 0;
 
   for (const item of queue) {
     try {
-      // Retry the photo upload for this queued item
-      const uploadedUrls = await uploadInspectionPhotos(
+      const urls = await uploadInspectionPhotos(
         item.hiveId,
         item.inspectionId,
         item.photoUris
       );
-
-      // Update the Firestore inspection doc with the now-uploaded URLs
       await updateDoc(
         doc(db, "hives", item.hiveId, "inspections", item.inspectionId),
         {
-          photoUris: uploadedUrls,
-          photoUrls: uploadedUrls,
+          photoUris: urls,
+          photoUrls: urls,
           photosUploaded: true,
           syncedAt: new Date(),
         }
       );
-
-      // Remove from queue now that it succeeded
       await removeFromQueue(item.id);
-
-      onProgress?.(`✅ Synced inspection ${item.inspectionId}`);
-    } catch (e) {
-      // Leave it in the queue — will retry next time online
-      console.log("❌ SYNC FAILED for item:", item.id, e);
-      onProgress?.(`⚠️ Sync failed for one item — will retry later`);
+      synced++;
+      onProgress?.(queue.length - synced);
+    } catch {
+      failed++;
     }
   }
+
+  return { synced, failed };
 }
