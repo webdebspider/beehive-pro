@@ -3,17 +3,19 @@
  *
  * Add Inspection Screen — creates a new inspection for a hive.
  *
+ * UX improvements:
+ *  - Enter key moves between fields, submits on last field
+ *  - After saving, user chooses to view hive or go home
+ *
  * Offline handling:
- *  - Inspection text data (queen, brood, notes) saves to Firestore always
- *  - If offline, photos are queued in AsyncStorage via offlineQueue
- *  - When back online, syncQueue.ts automatically retries photo uploads
- *  - User sees a clear status message about what happened
+ *  - Text data saves to Firestore always
+ *  - Photos queue to AsyncStorage if offline, sync when back online
  */
 
 import * as ImagePicker from "expo-image-picker";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { addDoc, collection, serverTimestamp, updateDoc } from "firebase/firestore";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   Alert,
   Image,
@@ -48,6 +50,10 @@ export default function AddInspectionScreen() {
   const [photoUris, setPhotoUris] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
 
+  // Refs for field focus management
+  const broodRef = useRef<TextInput>(null);
+  const notesRef = useRef<TextInput>(null);
+
   const takePhoto = async () => {
     const result = await ImagePicker.launchCameraAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -67,6 +73,24 @@ export default function AddInspectionScreen() {
   const removePhoto = (uri: string) =>
     setPhotoUris((prev) => prev.filter((item) => item !== uri));
 
+  /** Shows post-save navigation prompt */
+  const showSavePrompt = () => {
+    Alert.alert(
+      "Inspection saved! 🐝",
+      "Where would you like to go?",
+      [
+        {
+          text: "View Hive",
+          onPress: () => router.replace({ pathname: "/hive/[id]", params: { id: hiveId } }),
+        },
+        {
+          text: "Go Home",
+          onPress: () => router.replace("/hive"),
+        },
+      ]
+    );
+  };
+
   const handleSave = async () => {
     if (saving) return;
     if (!hiveId) { Alert.alert("Missing Hive", "No hive ID was provided."); return; }
@@ -74,21 +98,16 @@ export default function AddInspectionScreen() {
     try {
       setSaving(true);
 
-      // Step 1: Always save the inspection text data to Firestore
-      // This works even offline because Firestore has built-in local persistence
       const docRef = await addDoc(collection(db, "hives", hiveId, "inspections"), {
         hiveId, queen, brood,
         notes: notes.trim(),
-        photoUris: [],
-        photoUrls: [],
+        photoUris: [], photoUrls: [],
         createdAt: serverTimestamp(),
         date: new Date().toISOString(),
       });
 
-      // Step 2: Handle photos based on network status
       if (photoUris.length > 0) {
         if (isOnline) {
-          // Online — upload photos immediately
           try {
             const uploadedUrls = await uploadInspectionPhotos(hiveId, docRef.id, photoUris);
             await updateDoc(docRef, {
@@ -98,43 +117,16 @@ export default function AddInspectionScreen() {
               updatedAt: new Date(),
             });
           } catch (uploadError) {
-            // Upload failed even though we thought we were online
-            // Queue for retry
-            console.log("⚠️ Upload failed, queuing for retry:", uploadError);
-            await addToQueue({
-              hiveId,
-              inspectionId: docRef.id,
-              photoUris,
-            });
-            Alert.alert(
-              "Photos queued",
-              "Your inspection was saved but photos could not upload. They will sync automatically when your connection improves."
-            );
-            router.replace({ pathname: "/hive/[id]", params: { id: hiveId } });
-            return;
+            await addToQueue({ hiveId, inspectionId: docRef.id, photoUris });
           }
         } else {
-          // Offline — queue photos for later upload
-          await addToQueue({
-            hiveId,
-            inspectionId: docRef.id,
-            photoUris,
-          });
-
-          Alert.alert(
-            "Saved offline 📵",
-            "Your inspection was saved. Photos will upload automatically when you're back online.",
-            [{ text: "OK" }]
-          );
-          router.replace({ pathname: "/hive/[id]", params: { id: hiveId } });
-          return;
+          await addToQueue({ hiveId, inspectionId: docRef.id, photoUris });
         }
       }
 
-      router.replace({ pathname: "/hive/[id]", params: { id: hiveId } });
+      showSavePrompt();
     } catch (e) {
-      console.log("SAVE INSPECTION ERROR", e);
-      Alert.alert("Save failed", "The inspection could not be saved. Check your connection and try again.");
+      Alert.alert("Save failed", "The inspection could not be saved.");
     } finally {
       setSaving(false);
     }
@@ -149,7 +141,6 @@ export default function AddInspectionScreen() {
         <Text style={S.title}>New Inspection</Text>
         <Text style={S.subtitle}>Record what you observe in the hive today</Text>
 
-        {/* Offline indicator */}
         {!isOnline && (
           <View style={S.offlineNotice}>
             <Text style={S.offlineNoticeText}>
@@ -158,6 +149,7 @@ export default function AddInspectionScreen() {
           </View>
         )}
 
+        {/* Queen — moves to Brood on Enter */}
         <Text style={S.label}>👑 Queen Status</Text>
         <TextInput
           placeholder="e.g. seen, eggs present, not found"
@@ -165,30 +157,41 @@ export default function AddInspectionScreen() {
           value={queen}
           onChangeText={setQueen}
           style={S.input}
+          returnKeyType="next"
+          blurOnSubmit={false}
+          onSubmitEditing={() => broodRef.current?.focus()}
         />
 
+        {/* Brood — moves to Notes on Enter */}
         <Text style={S.label}>🐛 Brood Pattern</Text>
         <TextInput
+          ref={broodRef}
           placeholder="e.g. strong, weak, spotty"
           placeholderTextColor={theme.textMuted}
           value={brood}
           onChangeText={setBrood}
           style={S.input}
+          returnKeyType="next"
+          blurOnSubmit={false}
+          onSubmitEditing={() => notesRef.current?.focus()}
         />
 
+        {/* Notes — submits on Enter */}
         <Text style={S.label}>📝 Notes</Text>
         <TextInput
+          ref={notesRef}
           placeholder="Observations, concerns, treatments..."
           placeholderTextColor={theme.textMuted}
           value={notes}
           onChangeText={setNotes}
           multiline
           style={[S.input, S.notesInput]}
+          returnKeyType="done"
+          onSubmitEditing={handleSave}
         />
 
+        {/* Photos */}
         <Text style={S.label}>📷 Photos</Text>
-
-        {/* Show photo queue notice when offline */}
         {!isOnline && photoUris.length > 0 && (
           <View style={S.photoQueueNotice}>
             <Text style={S.photoQueueNoticeText}>
@@ -196,7 +199,6 @@ export default function AddInspectionScreen() {
             </Text>
           </View>
         )}
-
         <View style={S.photoButtons}>
           <Pressable onPress={takePhoto} style={S.photoButton}>
             <Text style={S.photoButtonText}>📷 Camera</Text>
@@ -223,11 +225,7 @@ export default function AddInspectionScreen() {
           style={[S.saveButton, saving && S.disabledButton]}
         >
           <Text style={S.saveText}>
-            {saving
-              ? "Saving..."
-              : isOnline
-              ? "Save Inspection"
-              : "Save Offline 📵"}
+            {saving ? "Saving..." : isOnline ? "Save Inspection" : "Save Offline 📵"}
           </Text>
         </Pressable>
       </ScrollView>
@@ -241,38 +239,10 @@ function makeStyles(theme: ReturnType<typeof useAppTheme>) {
     content: { padding: theme.spaceMD, paddingBottom: 50 },
     title: { color: theme.textPrimary, fontSize: theme.fontLG, fontWeight: "900", marginBottom: 4 },
     subtitle: { color: theme.textMuted, fontSize: theme.fontSM, marginBottom: theme.spaceLG },
-
-    // Offline notice banner
-    offlineNotice: {
-      backgroundColor: theme.warningBg,
-      borderWidth: 1,
-      borderColor: theme.warning,
-      padding: theme.spaceSM,
-      borderRadius: theme.radiusMD,
-      marginBottom: theme.spaceMD,
-    },
-    offlineNoticeText: {
-      color: theme.honeyLight,
-      fontSize: theme.fontXS,
-      fontWeight: "700",
-      textAlign: "center",
-    },
-
-    // Photo queue notice
-    photoQueueNotice: {
-      backgroundColor: theme.bgCardAlt,
-      borderWidth: 1,
-      borderColor: theme.border,
-      padding: theme.spaceSM,
-      borderRadius: theme.radiusSM,
-      marginBottom: theme.spaceSM,
-    },
-    photoQueueNoticeText: {
-      color: theme.textSecondary,
-      fontSize: theme.fontXS,
-      fontWeight: "700",
-    },
-
+    offlineNotice: { backgroundColor: theme.warningBg, borderWidth: 1, borderColor: theme.warning, padding: theme.spaceSM, borderRadius: theme.radiusMD, marginBottom: theme.spaceMD },
+    offlineNoticeText: { color: theme.honeyLight, fontSize: theme.fontXS, fontWeight: "700", textAlign: "center" },
+    photoQueueNotice: { backgroundColor: theme.bgCardAlt, borderWidth: 1, borderColor: theme.border, padding: theme.spaceSM, borderRadius: theme.radiusSM, marginBottom: theme.spaceSM },
+    photoQueueNoticeText: { color: theme.textSecondary, fontSize: theme.fontXS, fontWeight: "700" },
     label: { color: theme.textSecondary, fontSize: theme.fontSM, fontWeight: "700", marginTop: theme.spaceMD, marginBottom: 8 },
     input: { backgroundColor: theme.bgInput, color: theme.textPrimary, padding: 14, borderRadius: theme.radiusMD, fontSize: theme.fontMD, borderWidth: 1, borderColor: theme.border },
     notesInput: { minHeight: 110, textAlignVertical: "top" },
