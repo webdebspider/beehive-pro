@@ -45,7 +45,8 @@
         {
           "locationWhenInUsePermission": "Allow Beehive Pro to use your location for forage logging."
         }
-      ]
+      ],
+      "expo-speech-recognition"
     ],
     "experiments": {
       "typedRoutes": true
