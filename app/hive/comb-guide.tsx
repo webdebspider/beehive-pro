@@ -15,16 +15,15 @@
  *
  * Reference images sourced from Wikimedia Commons (CC BY-SA 3.0)
  *
- * Android fix: switched from en.wikipedia.org redirect URLs to
- * commons.wikimedia.org/wiki/Special:FilePath/ which is more permissive,
- * plus a browser User-Agent header so Android doesn't get blocked.
+ * Android fix: uses expo-image instead of RN Image — handles 302 redirects
+ * from commons.wikimedia.org/wiki/Special:FilePath/ correctly on Android.
  */
 
+import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import {
   Animated,
-  Image,
   NativeScrollEvent,
   NativeSyntheticEvent,
   Platform,
@@ -38,13 +37,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import NavBar from "../../components/NavBar";
 import { useSettingsContext } from "../../context/SettingsContext";
 import { useAppTheme } from "../../hooks/useAppTheme";
-
-// Browser-style User-Agent so Wikimedia doesn't block the image request on Android.
-const WIKIMEDIA_HEADERS = {
-  "User-Agent":
-    "Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36",
-  Referer: "https://commons.wikimedia.org/",
-};
 
 type Finding = {
   id: string; emoji: string; title: string; description: string;
@@ -322,12 +314,10 @@ export default function CombGuideScreen() {
                     {isImageShown && finding.referenceImage && (
                       <View style={S.imageContainer}>
                         <Image
-                          source={{
-                            uri: finding.referenceImage,
-                            headers: WIKIMEDIA_HEADERS,
-                          }}
+                          source={finding.referenceImage}
                           style={S.referenceImage}
-                          resizeMode="cover"
+                          contentFit="cover"
+                          transition={300}
                         />
                         {finding.imageCaption && (
                           <Text style={S.imageCaption}>{finding.imageCaption}</Text>
