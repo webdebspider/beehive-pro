@@ -2,6 +2,9 @@
  * app/hive/inspection/add.tsx
  *
  * Add Inspection Screen — creates a new inspection for a hive.
+ *
+ * Added: 🎙️ Voice button near notes field — navigates to voice-log,
+ * which returns with transcript pre-filled into notes.
  */
 
 import * as ImagePicker from "expo-image-picker";
@@ -32,7 +35,12 @@ export default function AddInspectionScreen() {
   const theme = useAppTheme();
   const isOnline = useNetworkStatus();
 
-  const { id, queen: initialQueen, brood: initialBrood, notes: initialNotes } = useLocalSearchParams<{
+  const {
+    id,
+    queen: initialQueen,
+    brood: initialBrood,
+    notes: initialNotes,
+  } = useLocalSearchParams<{
     id?: string; queen?: string; brood?: string; notes?: string;
   }>();
 
@@ -61,7 +69,8 @@ export default function AddInspectionScreen() {
   const showSavePrompt = () => {
     if (Platform.OS === "web") {
       const goHome = window.confirm("Inspection saved! 🐝\n\nClick OK to go Home, or Cancel to view the hive.");
-      if (goHome) { router.replace("/hive"); } else { router.replace({ pathname: "/hive/[id]", params: { id: hiveId } }); }
+      if (goHome) { router.replace("/hive"); }
+      else { router.replace({ pathname: "/hive/[id]", params: { id: hiveId } }); }
     } else {
       Alert.alert("Inspection saved! 🐝", "Where would you like to go?", [
         { text: "View Hive", onPress: () => router.replace({ pathname: "/hive/[id]", params: { id: hiveId } }) },
@@ -84,13 +93,15 @@ export default function AddInspectionScreen() {
           try {
             const uploadedUrls = await uploadInspectionPhotos(hiveId, docRef.id, photoUris);
             await updateDoc(docRef, { photoUris: uploadedUrls, photoUrls: uploadedUrls, photosUploaded: true, updatedAt: new Date() });
-          } catch { await addToQueue({ hiveId, inspectionId: docRef.id, photoUris }); }
+          } catch {
+            await addToQueue({ hiveId, inspectionId: docRef.id, photoUris });
+          }
         } else {
           await addToQueue({ hiveId, inspectionId: docRef.id, photoUris });
         }
       }
       showSavePrompt();
-    } catch (e) {
+    } catch {
       Alert.alert("Save failed", "The inspection could not be saved.");
     } finally {
       setSaving(false);
@@ -131,7 +142,16 @@ export default function AddInspectionScreen() {
           onSubmitEditing={() => notesRef.current?.focus()}
         />
 
-        <Text style={S.label}>📝 Notes</Text>
+        {/* Notes with voice button */}
+        <View style={S.notesHeader}>
+          <Text style={S.label}>📝 Notes</Text>
+          <Pressable
+            style={S.voiceButton}
+            onPress={() => router.push({ pathname: "/hive/voice-log", params: { id: hiveId, source: "add" } })}
+          >
+            <Text style={S.voiceButtonText}>🎙️ Voice</Text>
+          </Pressable>
+        </View>
         <TextInput
           ref={notesRef}
           placeholder="Observations, concerns, treatments..."
@@ -182,6 +202,9 @@ function makeStyles(theme: ReturnType<typeof useAppTheme>) {
     photoQueueNotice: { backgroundColor: theme.bgCardAlt, borderWidth: 1, borderColor: theme.border, padding: theme.spaceSM, borderRadius: theme.radiusSM, marginBottom: theme.spaceSM },
     photoQueueNoticeText: { color: theme.textSecondary, fontSize: theme.fontXS, fontWeight: "700" },
     label: { color: theme.textSecondary, fontSize: theme.fontSM, fontWeight: "700", marginTop: theme.spaceMD, marginBottom: 8 },
+    notesHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: theme.spaceMD, marginBottom: 8 },
+    voiceButton: { backgroundColor: theme.bgCardAlt, paddingVertical: 6, paddingHorizontal: 12, borderRadius: theme.radiusSM, borderWidth: 1, borderColor: theme.honey },
+    voiceButtonText: { color: theme.honey, fontWeight: "800", fontSize: theme.fontXS },
     input: { backgroundColor: theme.bgInput, color: theme.textPrimary, padding: 14, borderRadius: theme.radiusMD, fontSize: theme.fontMD, borderWidth: 1, borderColor: theme.border },
     notesInput: { minHeight: 110, textAlignVertical: "top" },
     photoButtons: { flexDirection: "row", gap: 10 },

@@ -5,6 +5,9 @@
  *
  * Beginner mode: hints shown under each category, selected options show descriptions.
  * Queen is multi-select, all others single select.
+ *
+ * Added: 🎙️ Voice button navigates to voice-log screen.
+ * Accepts voice params back from voice-log to pre-fill fields.
  */
 
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -26,37 +29,37 @@ import { db } from "../../../utils/firebase";
 import { removePendingInspectionBackup, savePendingInspectionBackup } from "../../../utils/localBackup";
 
 const QUEEN_OPTIONS = [
-  { value: "seen", label: "Seen", hint: "You spotted the queen herself moving on the comb." },
-  { value: "eggs", label: "Eggs", hint: "Tiny white grains standing upright in cells — queen was here within 3 days." },
-  { value: "not_found", label: "Not Found", hint: "Could not locate queen or fresh eggs. May need a recheck." },
-  { value: "cells", label: "Queen Cells", hint: "Large peanut-shaped cells — bees may be preparing to swarm or replace queen." },
+  { value: "seen",      label: "Seen",         hint: "You spotted the queen herself moving on the comb." },
+  { value: "eggs",      label: "Eggs",         hint: "Tiny white grains standing upright in cells — queen was here within 3 days." },
+  { value: "not_found", label: "Not Found",    hint: "Could not locate queen or fresh eggs. May need a recheck." },
+  { value: "cells",     label: "Queen Cells",  hint: "Large peanut-shaped cells — bees may be preparing to swarm or replace queen." },
 ];
 
 const BROOD_OPTIONS = [
   { value: "strong", label: "Strong", hint: "Solid compact pattern, healthy C-shaped larvae, good coverage." },
   { value: "medium", label: "Medium", hint: "Some gaps but generally decent pattern and healthy appearance." },
-  { value: "weak", label: "Weak", hint: "Sparse brood, few larvae, colony may be struggling." },
+  { value: "weak",   label: "Weak",   hint: "Sparse brood, few larvae, colony may be struggling." },
   { value: "spotty", label: "Spotty", hint: "Many random empty cells — possible disease or failing queen." },
 ];
 
 const MITES_OPTIONS = [
-  { value: "0", label: "0", hint: "No mites visible on bees or in cells." },
-  { value: "2", label: "1-2", hint: "Very low mite count — monitor regularly." },
-  { value: "5", label: "3-5", hint: "Moderate — consider treatment soon." },
-  { value: "6-10", label: "6-10", hint: "High — treatment recommended." },
-  { value: "10+", label: "10+", hint: "Critical — treat immediately." },
+  { value: "0",    label: "0",     hint: "No mites visible on bees or in cells." },
+  { value: "2",    label: "1-2",   hint: "Very low mite count — monitor regularly." },
+  { value: "5",    label: "3-5",   hint: "Moderate — consider treatment soon." },
+  { value: "6-10", label: "6-10",  hint: "High — treatment recommended." },
+  { value: "10+",  label: "10+",   hint: "Critical — treat immediately." },
 ];
 
 const BEETLE_OPTIONS = [
-  { value: "none", label: "None", hint: "No small hive beetles spotted." },
-  { value: "few", label: "Few", hint: "1-5 beetles — colony is managing them." },
+  { value: "none",     label: "None",     hint: "No small hive beetles spotted." },
+  { value: "few",      label: "Few",      hint: "1-5 beetles — colony is managing them." },
   { value: "moderate", label: "Moderate", hint: "Several beetles visible — watch closely." },
-  { value: "heavy", label: "Heavy", hint: "Many beetles overwhelming defenses — action needed." },
+  { value: "heavy",    label: "Heavy",    hint: "Many beetles overwhelming defenses — action needed." },
 ];
 
 const TEMPERAMENT_OPTIONS = [
-  { value: "calm", label: "Calm", hint: "Bees barely notice you — great sign." },
-  { value: "active", label: "Active", hint: "Bees are buzzing around but not aggressive." },
+  { value: "calm",      label: "Calm",      hint: "Bees barely notice you — great sign." },
+  { value: "active",    label: "Active",    hint: "Bees are buzzing around but not aggressive." },
   { value: "defensive", label: "Defensive", hint: "Bees are stinging, following, or fanning aggressively." },
 ];
 
@@ -66,15 +69,39 @@ export default function QuickInspectionScreen() {
   const { settings } = useSettingsContext();
   const isBeginner = settings.appMode === "beginner";
 
-  const { id } = useLocalSearchParams<{ id?: string }>();
+  const {
+    id,
+    voiceQueen,
+    voiceBrood,
+    voiceMites,
+    voiceBeetles,
+    voiceTemperament,
+  } = useLocalSearchParams<{
+    id?: string;
+    voiceQueen?: string;
+    voiceBrood?: string;
+    voiceMites?: string;
+    voiceBeetles?: string;
+    voiceTemperament?: string;
+  }>();
+
   const hiveId = id ? String(id) : "";
 
-  const [queenSelections, setQueenSelections] = useState<Set<string>>(new Set());
-  const [brood, setBrood] = useState("");
-  const [mites, setMites] = useState("");
-  const [hiveBeetles, setHiveBeetles] = useState("");
-  const [temperament, setTemperament] = useState("");
+  // Initialize from voice params if provided
+  const [queenSelections, setQueenSelections] = useState<Set<string>>(() => {
+    if (voiceQueen) {
+      const vals = String(voiceQueen).split(",").map((s) => s.trim()).filter(Boolean);
+      return new Set(vals);
+    }
+    return new Set();
+  });
+  const [brood, setBrood] = useState(voiceBrood ? String(voiceBrood) : "");
+  const [mites, setMites] = useState(voiceMites ? String(voiceMites) : "");
+  const [hiveBeetles, setHiveBeetles] = useState(voiceBeetles ? String(voiceBeetles) : "");
+  const [temperament, setTemperament] = useState(voiceTemperament ? String(voiceTemperament) : "");
   const [saving, setSaving] = useState(false);
+
+  const hasVoiceFill = !!(voiceQueen || voiceBrood || voiceMites || voiceBeetles || voiceTemperament);
 
   const toggleQueen = (value: string) => {
     setQueenSelections((prev) => {
@@ -117,7 +144,7 @@ export default function QuickInspectionScreen() {
       });
       await removePendingInspectionBackup(backupId);
       router.replace({ pathname: "/hive/[id]", params: { id: hiveId } });
-    } catch (e) {
+    } catch {
       Alert.alert("Saved locally", "Quick inspection saved on this device and will sync later.");
       router.replace({ pathname: "/hive/[id]", params: { id: hiveId } });
     } finally {
@@ -127,7 +154,9 @@ export default function QuickInspectionScreen() {
 
   const S = makeStyles(theme);
 
-  const SingleOption = ({ label, hint, selected, onPress }: { label: string; hint: string; selected: boolean; onPress: () => void }) => (
+  const SingleOption = ({
+    label, hint, selected, onPress,
+  }: { label: string; hint: string; selected: boolean; onPress: () => void }) => (
     <Pressable onPress={onPress} style={[S.option, selected && S.optionSelected]}>
       <Text style={[S.optionText, selected && S.optionTextSelected]}>{label}</Text>
       {isBeginner && selected && <Text style={S.optionHint}>{hint}</Text>}
@@ -151,10 +180,29 @@ export default function QuickInspectionScreen() {
     <SafeAreaView style={S.page}>
       <NavBar />
       <ScrollView contentContainerStyle={S.content}>
-        <Text style={S.title}>⚡ Quick Inspection</Text>
-        <Text style={S.subtitle}>
-          {isBeginner ? "Tap all that apply. Selected options show hints to help you confirm." : "Big buttons. Fast hive check."}
-        </Text>
+        <View style={S.titleRow}>
+          <View>
+            <Text style={S.title}>⚡ Quick Inspection</Text>
+            <Text style={S.subtitle}>
+              {isBeginner
+                ? "Tap all that apply. Selected options show hints to help you confirm."
+                : "Big buttons. Fast hive check."}
+            </Text>
+          </View>
+          <Pressable
+            style={S.voiceButton}
+            onPress={() => router.push({ pathname: "/hive/voice-log", params: { id: hiveId, source: "quick" } })}
+          >
+            <Text style={S.voiceButtonText}>🎙️ Voice</Text>
+          </Pressable>
+        </View>
+
+        {/* Voice fill banner */}
+        {hasVoiceFill && (
+          <View style={S.voiceFillBanner}>
+            <Text style={S.voiceFillText}>🎙️ Fields pre-filled from voice — review and adjust below</Text>
+          </View>
+        )}
 
         <View style={S.categoryHeader}>
           <Text style={S.label}>👑 Queen</Text>
@@ -166,7 +214,9 @@ export default function QuickInspectionScreen() {
           </View>
         )}
         <View style={S.grid}>
-          {QUEEN_OPTIONS.map((opt) => <MultiOption key={opt.value} label={opt.label} hint={opt.hint} value={opt.value} />)}
+          {QUEEN_OPTIONS.map((opt) => (
+            <MultiOption key={opt.value} label={opt.label} hint={opt.hint} value={opt.value} />
+          ))}
         </View>
 
         <View style={S.categoryHeader}>
@@ -179,7 +229,9 @@ export default function QuickInspectionScreen() {
           </View>
         )}
         <View style={S.grid}>
-          {BROOD_OPTIONS.map((opt) => <SingleOption key={opt.value} label={opt.label} hint={opt.hint} selected={brood === opt.value} onPress={() => setBrood(opt.value)} />)}
+          {BROOD_OPTIONS.map((opt) => (
+            <SingleOption key={opt.value} label={opt.label} hint={opt.hint} selected={brood === opt.value} onPress={() => setBrood(opt.value)} />
+          ))}
         </View>
 
         <View style={S.categoryHeader}>
@@ -192,7 +244,9 @@ export default function QuickInspectionScreen() {
           </View>
         )}
         <View style={S.grid}>
-          {MITES_OPTIONS.map((opt) => <SingleOption key={opt.value} label={opt.label} hint={opt.hint} selected={mites === opt.value} onPress={() => setMites(opt.value)} />)}
+          {MITES_OPTIONS.map((opt) => (
+            <SingleOption key={opt.value} label={opt.label} hint={opt.hint} selected={mites === opt.value} onPress={() => setMites(opt.value)} />
+          ))}
         </View>
 
         <View style={S.categoryHeader}>
@@ -205,7 +259,9 @@ export default function QuickInspectionScreen() {
           </View>
         )}
         <View style={S.grid}>
-          {BEETLE_OPTIONS.map((opt) => <SingleOption key={opt.value} label={opt.label} hint={opt.hint} selected={hiveBeetles === opt.value} onPress={() => setHiveBeetles(opt.value)} />)}
+          {BEETLE_OPTIONS.map((opt) => (
+            <SingleOption key={opt.value} label={opt.label} hint={opt.hint} selected={hiveBeetles === opt.value} onPress={() => setHiveBeetles(opt.value)} />
+          ))}
         </View>
 
         <View style={S.categoryHeader}>
@@ -218,7 +274,9 @@ export default function QuickInspectionScreen() {
           </View>
         )}
         <View style={S.grid}>
-          {TEMPERAMENT_OPTIONS.map((opt) => <SingleOption key={opt.value} label={opt.label} hint={opt.hint} selected={temperament === opt.value} onPress={() => setTemperament(opt.value)} />)}
+          {TEMPERAMENT_OPTIONS.map((opt) => (
+            <SingleOption key={opt.value} label={opt.label} hint={opt.hint} selected={temperament === opt.value} onPress={() => setTemperament(opt.value)} />
+          ))}
         </View>
 
         <Pressable onPress={handleSave} style={[S.saveButton, saving && S.disabledButton]} disabled={saving}>
@@ -233,8 +291,13 @@ function makeStyles(theme: ReturnType<typeof useAppTheme>) {
   return StyleSheet.create({
     page: { flex: 1, backgroundColor: theme.bg },
     content: { padding: theme.spaceMD, paddingBottom: 50 },
-    title: { color: theme.textPrimary, fontSize: theme.fontLG, fontWeight: "900", marginBottom: 4 },
-    subtitle: { color: theme.textMuted, fontSize: theme.fontSM, marginBottom: theme.spaceMD },
+    titleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 4 },
+    title: { color: theme.textPrimary, fontSize: theme.fontLG, fontWeight: "900", marginBottom: 2 },
+    subtitle: { color: theme.textMuted, fontSize: theme.fontSM, maxWidth: "75%" },
+    voiceButton: { backgroundColor: theme.bgCardAlt, paddingVertical: 10, paddingHorizontal: 14, borderRadius: theme.radiusMD, borderWidth: 1, borderColor: theme.honey, alignItems: "center" },
+    voiceButtonText: { color: theme.honey, fontWeight: "900", fontSize: theme.fontSM },
+    voiceFillBanner: { backgroundColor: theme.bgCardAlt, borderWidth: 1, borderColor: theme.honey, padding: theme.spaceSM, borderRadius: theme.radiusSM, marginBottom: theme.spaceSM },
+    voiceFillText: { color: theme.honey, fontSize: theme.fontXS, fontWeight: "700" },
     categoryHeader: { flexDirection: "row", alignItems: "baseline", gap: 10, marginTop: theme.spaceLG, marginBottom: 4 },
     label: { color: theme.textPrimary, fontSize: theme.fontMD, fontWeight: "900" },
     categoryHint: { color: theme.textMuted, fontSize: theme.fontXS, fontStyle: "italic" },
