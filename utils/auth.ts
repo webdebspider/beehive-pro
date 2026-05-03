@@ -11,6 +11,7 @@ import {
   getAuth,
   GoogleAuthProvider,
   initializeAuth,
+  Persistence,
   sendPasswordResetEmail,
   signInWithCredential,
   signInWithEmailAndPassword,
@@ -19,11 +20,30 @@ import {
 import { Platform } from "react-native";
 import { app } from "./firebase";
 
-// Use persistence on native, standard auth on web
+/**
+ * Custom AsyncStorage persistence for React Native.
+ * Stores Firebase auth tokens in AsyncStorage so users
+ * stay logged in between app restarts.
+ */
+const asyncStoragePersistence: Persistence = {
+  type: "LOCAL" as const,
+  _isAvailable: () => Promise.resolve(true),
+  _set: (key: string, value: any) =>
+    AsyncStorage.setItem(key, JSON.stringify(value)),
+  _get: async (key: string) => {
+    const val = await AsyncStorage.getItem(key);
+    return val ? JSON.parse(val) : null;
+  },
+  _remove: (key: string) => AsyncStorage.removeItem(key),
+  _addListener: (_key: string, _listener: any) => {},
+  _removeListener: (_key: string, _listener: any) => {},
+} as unknown as Persistence;
+
+// Web uses standard getAuth, native uses initializeAuth with AsyncStorage
 export const auth = Platform.OS === "web"
   ? getAuth(app)
   : initializeAuth(app, {
-      persistence: (require("@firebase/auth/react-native") as any).getReactNativePersistence(AsyncStorage),
+      persistence: asyncStoragePersistence,
     });
 
 export const googleProvider = new GoogleAuthProvider();
