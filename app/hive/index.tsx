@@ -3,11 +3,16 @@
  *
  * Hive Dashboard — main landing screen of the app.
  * Shows only the current user's hives.
+ *
+ * Update: stat cards for Hives, Inspections, and Reviews are now tappable.
+ *  - Hives → scrolls to hive list
+ *  - Inspections → /hive/charts
+ *  - Reviews → /hive/charts
  */
 
 import { useRouter } from "expo-router";
 import { collection, getDocs, query, where } from "firebase/firestore";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -34,6 +39,8 @@ export default function HiveDashboard() {
   const { user } = useAuthContext();
   const [hives, setHives] = useState<HiveCard[]>([]);
   const [loading, setLoading] = useState(true);
+  const scrollRef = useRef<ScrollView>(null);
+  const hivesListY = useRef<number>(0);
 
   useEffect(() => { loadData(); }, [user]);
 
@@ -78,6 +85,10 @@ export default function HiveDashboard() {
     router.replace("/login");
   };
 
+  const scrollToHives = () => {
+    scrollRef.current?.scrollTo({ y: hivesListY.current, animated: true });
+  };
+
   const totalMentorCount = hives.reduce((sum, h) => sum + h.mentorCount, 0);
   const totalInspections = hives.reduce((sum, h) => sum + h.inspections.length, 0);
 
@@ -98,7 +109,7 @@ export default function HiveDashboard() {
     <SafeAreaView style={S.page}>
       <OfflineBanner />
       <NavBar />
-      <ScrollView contentContainerStyle={S.content}>
+      <ScrollView ref={scrollRef} contentContainerStyle={S.content}>
         <View style={S.header}>
           <View style={S.headerLeft}>
             <Text style={S.headerEmoji}>🐝</Text>
@@ -117,20 +128,28 @@ export default function HiveDashboard() {
         )}
 
         <View style={S.statsRow}>
-          <View style={S.statCard}>
+          <Pressable onPress={scrollToHives} style={S.statCard}>
             <Text style={S.statNumber}>{hives.length}</Text>
             <Text style={S.statLabel}>Hives</Text>
-          </View>
-          <View style={S.statCard}>
+            <Text style={S.statHint}>↓ view</Text>
+          </Pressable>
+          <Pressable onPress={() => router.push("/hive/charts")} style={S.statCard}>
             <Text style={S.statNumber}>{totalInspections}</Text>
             <Text style={S.statLabel}>Inspections</Text>
-          </View>
-          <View style={[S.statCard, totalMentorCount > 0 && S.statCardWarning]}>
+            <Text style={S.statHint}>→ charts</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => router.push("/hive/charts")}
+            style={[S.statCard, totalMentorCount > 0 && S.statCardWarning]}
+          >
             <Text style={[S.statNumber, totalMentorCount > 0 && S.statNumberWarning]}>
               {totalMentorCount}
             </Text>
             <Text style={S.statLabel}>Reviews</Text>
-          </View>
+            <Text style={[S.statHint, totalMentorCount > 0 && S.statHintWarning]}>
+              → charts
+            </Text>
+          </Pressable>
         </View>
 
         {totalMentorCount > 0 && (
@@ -154,7 +173,12 @@ export default function HiveDashboard() {
           </Pressable>
         </View>
 
-        <Text style={S.sectionLabel}>YOUR HIVES</Text>
+        <Text
+          style={S.sectionLabel}
+          onLayout={(e) => { hivesListY.current = e.nativeEvent.layout.y; }}
+        >
+          YOUR HIVES
+        </Text>
 
         {hives.length === 0 ? (
           <View style={S.emptyBox}>
@@ -224,6 +248,8 @@ function makeStyles(theme: ReturnType<typeof useAppTheme>) {
     statNumber: { color: theme.honey, fontSize: 28, fontWeight: "900" },
     statNumberWarning: { color: theme.honeyLight },
     statLabel: { color: theme.textSecondary, fontSize: theme.fontXS, fontWeight: "700", marginTop: 2 },
+    statHint: { color: theme.textMuted, fontSize: 10, marginTop: 4, fontWeight: "600" },
+    statHintWarning: { color: theme.honeyLight },
     alertBanner: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: theme.warningBg, borderWidth: 1, borderColor: theme.warning, padding: theme.spaceMD, borderRadius: theme.radiusMD, marginBottom: theme.spaceMD },
     alertIcon: { fontSize: 24 },
     alertTitle: { color: theme.honeyLight, fontWeight: "900", fontSize: theme.fontMD },
