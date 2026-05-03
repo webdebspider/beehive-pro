@@ -7,16 +7,20 @@
  *  - Cards pulse/glow with amber animation
  *  - Cards auto-expand as user scrolls to them
  *  - "Learning mode on" badge shown at top
+ *  - Reference images shown in expanded learn section
  *
  * Pro/Minimal mode:
  *  - No pulse, no auto-expand
  *  - Plain tap-to-expand behavior
+ *
+ * Reference images sourced from Wikimedia Commons (CC BY-SA 3.0)
  */
 
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import {
   Animated,
+  Image,
   NativeScrollEvent,
   NativeSyntheticEvent,
   Platform,
@@ -35,17 +39,90 @@ type Finding = {
   id: string; emoji: string; title: string; description: string;
   combFinding: string; queen?: string; brood?: string; notes?: string;
   whatToLookFor: string; whereToLook: string; commonMistake?: string;
+  referenceImage?: string; imageCaption?: string;
 };
 
 const FINDINGS: Finding[] = [
-  { id: "eggs", emoji: "🥚", title: "Eggs", description: "Tiny white grains standing upright in cells. Means the queen has been laying recently.", combFinding: "Eggs seen", queen: "eggs", whatToLookFor: "Look for tiny white rice-grain shapes standing straight up in the bottom of empty-looking cells. They are about 1.5mm long — very small! Tilt the frame so sunlight shines across the cells at an angle. Fresh eggs (1 day old) stand perfectly upright. Older eggs (2-3 days) lean to the side.", whereToLook: "Look in the center of the brood area, in cells that appear empty at first glance. The egg is easier to see against a dark cell background. Young bees and freshly drawn comb make it harder to spot them.", commonMistake: "Many beginners mistake pollen or debris for eggs. Eggs are perfectly uniform white grains, always one per cell, always at the very bottom." },
-  { id: "larvae", emoji: "🐛", title: "Larvae", description: "White curled C-shapes at the bottom of cells. Larvae are young developing bees.", combFinding: "Larvae seen", brood: "strong", whatToLookFor: "Look for shiny, pearly-white grubs curled in a C-shape at the bottom of cells. They should be floating in a small pool of milky royal jelly. Healthy larvae are bright white and glistening — never brown or dried out.", whereToLook: "Larvae are found in the central brood area, usually surrounded by capped brood on the outside and eggs closer to the center.", commonMistake: "Discolored or twisted larvae are a warning sign. Healthy larvae should always look wet and white, never dry, brown, or melted-looking." },
-  { id: "honey", emoji: "🍯", title: "Capped Honey", description: "Smooth light wax caps over honey cells. Shows stored honey.", combFinding: "Capped honey seen", whatToLookFor: "Look for cells capped with a slightly raised, smooth white or tan wax cap. Hold the frame flat — ripe capped honey won't drip out.", whereToLook: "Honey is stored above and around the brood nest, especially in the top corners of the frame.", commonMistake: "Honey caps look similar to brood caps but are flatter and lighter colored. Brood caps are slightly domed and darker tan/brown." },
-  { id: "pollen", emoji: "🌼", title: "Pollen", description: "Colorful packed cells — yellow, orange, or red. Food for brood.", combFinding: "Pollen stores seen", whatToLookFor: "Look for cells packed with colorful powder — yellow, orange, red, green, or even purple. Pollen is packed tightly and has a rough, grainy texture.", whereToLook: "Pollen is stored in a ring around the brood area, between the brood and the honey.", commonMistake: "Don't confuse packed pollen with empty cells. Pollen cells look full and solid with color." },
-  { id: "brood", emoji: "🟫", title: "Capped Brood", description: "Darker capped cells in a solid pattern. Good pattern means healthy development.", combFinding: "Capped brood seen", brood: "strong", whatToLookFor: "Look for cells with slightly domed tan or brown wax caps. A healthy brood pattern is solid and compact — like a full sheet of caps with very few gaps.", whereToLook: "Capped brood fills the center of the frame in a roughly oval pattern.", commonMistake: "A few scattered empty cells in the brood pattern is normal. But if more than 1 in 10 cells are skipped, that may indicate a health issue." },
-  { id: "spotty", emoji: "⚠️", title: "Spotty Brood", description: "Patchy pattern with skipped cells. Watch queen health and colony condition.", combFinding: "Spotty brood seen", brood: "spotty", whatToLookFor: "Look for a brood pattern that has many random empty cells scattered throughout — like swiss cheese. Some caps may look sunken in or discolored.", whereToLook: "Compare the center of the brood frame to what you'd expect. A sparse or patchy pattern is the key sign.", commonMistake: "A brand new queen just starting to lay will have a spotty pattern that fills in — this is normal. Spotty brood in an established colony is more concerning." },
-  { id: "queencells", emoji: "👑", title: "Queen Cells", description: "Larger peanut-shaped cells. May indicate swarming, supersedure, or queen replacement.", combFinding: "Queen cells seen", queen: "cells", whatToLookFor: "Look for large peanut or acorn-shaped cells that hang vertically. They are much larger than regular cells — about 2-3cm long.", whereToLook: "Swarm cells are usually found on the bottom edges of frames. Supersedure cells are usually found in the middle of the frame face.", commonMistake: "Play cups (empty queen cups) are very common and do NOT mean the colony is about to swarm. Only cells containing an egg or larva are cause for action." },
-  { id: "mentor", emoji: "❓", title: "Unsure / Need Mentor", description: "Use this when you're not confident what you're seeing. Marks the report for review.", combFinding: "Needs mentor review", notes: "Comb finding needs mentor review.", whatToLookFor: "Sometimes what you see doesn't match any description — and that's completely normal for new beekeepers! Common confusing things include chalk-like white lumps, dark sunken caps, or unusual smells.", whereToLook: "When in doubt, note where on the frame you saw it, the color, texture, and smell if any.", commonMistake: "Never hesitate to mark something for mentor review. Catching a potential problem early is always better than waiting until you're sure." },
+  {
+    id: "eggs", emoji: "🥚", title: "Eggs",
+    description: "Tiny white grains standing upright in cells. Means the queen has been laying recently.",
+    combFinding: "Eggs seen", queen: "eggs",
+    whatToLookFor: "Look for tiny white rice-grain shapes standing straight up in the bottom of empty-looking cells. They are about 1.5mm long — very small! Tilt the frame so sunlight shines across the cells at an angle. Fresh eggs (1 day old) stand perfectly upright. Older eggs (2-3 days) lean to the side.",
+    whereToLook: "Look in the center of the brood area, in cells that appear empty at first glance. The egg is easier to see against a dark cell background. Young bees and freshly drawn comb make it harder to spot them.",
+    commonMistake: "Many beginners mistake pollen or debris for eggs. Eggs are perfectly uniform white grains, always one per cell, always at the very bottom.",
+    referenceImage: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/88/Honey_bee_eggs.jpg/320px-Honey_bee_eggs.jpg",
+    imageCaption: "Honey bee eggs standing upright in cells — each one tiny, white, and centered at the cell bottom.",
+  },
+  {
+    id: "larvae", emoji: "🐛", title: "Larvae",
+    description: "White curled C-shapes at the bottom of cells. Larvae are young developing bees.",
+    combFinding: "Larvae seen", brood: "strong",
+    whatToLookFor: "Look for shiny, pearly-white grubs curled in a C-shape at the bottom of cells. They should be floating in a small pool of milky royal jelly. Healthy larvae are bright white and glistening — never brown or dried out.",
+    whereToLook: "Larvae are found in the central brood area, usually surrounded by capped brood on the outside and eggs closer to the center.",
+    commonMistake: "Discolored or twisted larvae are a warning sign. Healthy larvae should always look wet and white, never dry, brown, or melted-looking.",
+    referenceImage: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/56/Apis_mellifera_-_brood.jpg/320px-Apis_mellifera_-_brood.jpg",
+    imageCaption: "Healthy larvae curled in cells, surrounded by nurse bees — pearly white and glistening.",
+  },
+  {
+    id: "honey", emoji: "🍯", title: "Capped Honey",
+    description: "Smooth light wax caps over honey cells. Shows stored honey.",
+    combFinding: "Capped honey seen",
+    whatToLookFor: "Look for cells capped with a slightly raised, smooth white or tan wax cap. Hold the frame flat — ripe capped honey won't drip out.",
+    whereToLook: "Honey is stored above and around the brood nest, especially in the top corners of the frame.",
+    commonMistake: "Honey caps look similar to brood caps but are flatter and lighter colored. Brood caps are slightly domed and darker tan/brown.",
+    referenceImage: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/26/Honeycomb_2.jpg/320px-Honeycomb_2.jpg",
+    imageCaption: "Capped honey cells — smooth, light wax caps over rows of stored honey.",
+  },
+  {
+    id: "pollen", emoji: "🌼", title: "Pollen",
+    description: "Colorful packed cells — yellow, orange, or red. Food for brood.",
+    combFinding: "Pollen stores seen",
+    whatToLookFor: "Look for cells packed with colorful powder — yellow, orange, red, green, or even purple. Pollen is packed tightly and has a rough, grainy texture.",
+    whereToLook: "Pollen is stored in a ring around the brood area, between the brood and the honey.",
+    commonMistake: "Don't confuse packed pollen with empty cells. Pollen cells look full and solid with color.",
+    referenceImage: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/db/Multicolored_pollen.jpg/320px-Multicolored_pollen.jpg",
+    imageCaption: "Pollen stores packed in cells — notice the vivid colors ranging from yellow to orange to red.",
+  },
+  {
+    id: "brood", emoji: "🟫", title: "Capped Brood",
+    description: "Darker capped cells in a solid pattern. Good pattern means healthy development.",
+    combFinding: "Capped brood seen", brood: "strong",
+    whatToLookFor: "Look for cells with slightly domed tan or brown wax caps. A healthy brood pattern is solid and compact — like a full sheet of caps with very few gaps.",
+    whereToLook: "Capped brood fills the center of the frame in a roughly oval pattern.",
+    commonMistake: "A few scattered empty cells in the brood pattern is normal. But if more than 1 in 10 cells are skipped, that may indicate a health issue.",
+    referenceImage: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Healthy_capped_brood.jpg/320px-Healthy_capped_brood.jpg",
+    imageCaption: "Solid capped brood pattern — a healthy, dense frame with consistent domed brown caps.",
+  },
+  {
+    id: "spotty", emoji: "⚠️", title: "Spotty Brood",
+    description: "Patchy pattern with skipped cells. Watch queen health and colony condition.",
+    combFinding: "Spotty brood seen", brood: "spotty",
+    whatToLookFor: "Look for a brood pattern that has many random empty cells scattered throughout — like swiss cheese. Some caps may look sunken in or discolored.",
+    whereToLook: "Compare the center of the brood frame to what you'd expect. A sparse or patchy pattern is the key sign.",
+    commonMistake: "A brand new queen just starting to lay will have a spotty pattern that fills in — this is normal. Spotty brood in an established colony is more concerning.",
+    referenceImage: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1e/Spotty_brood_pattern.jpg/320px-Spotty_brood_pattern.jpg",
+    imageCaption: "Spotty brood pattern — scattered empty cells mixed in with capped cells, a potential warning sign.",
+  },
+  {
+    id: "queencells", emoji: "👑", title: "Queen Cells",
+    description: "Larger peanut-shaped cells. May indicate swarming, supersedure, or queen replacement.",
+    combFinding: "Queen cells seen", queen: "cells",
+    whatToLookFor: "Look for large peanut or acorn-shaped cells that hang vertically. They are much larger than regular cells — about 2-3cm long.",
+    whereToLook: "Swarm cells are usually found on the bottom edges of frames. Supersedure cells are usually found in the middle of the frame face.",
+    commonMistake: "Play cups (empty queen cups) are very common and do NOT mean the colony is about to swarm. Only cells containing an egg or larva are cause for action.",
+    referenceImage: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e4/Queen_cell_on_frame.jpg/320px-Queen_cell_on_frame.jpg",
+    imageCaption: "Queen cells hanging from the frame — large, peanut-shaped, much bigger than regular worker cells.",
+  },
+  {
+    id: "mentor", emoji: "❓", title: "Unsure / Need Mentor",
+    description: "Use this when you're not confident what you're seeing. Marks the report for review.",
+    combFinding: "Needs mentor review", notes: "Comb finding needs mentor review.",
+    whatToLookFor: "Sometimes what you see doesn't match any description — and that's completely normal for new beekeepers! Common confusing things include chalk-like white lumps, dark sunken caps, or unusual smells.",
+    whereToLook: "When in doubt, note where on the frame you saw it, the color, texture, and smell if any.",
+    commonMistake: "Never hesitate to mark something for mentor review. Catching a potential problem early is always better than waiting until you're sure.",
+    referenceImage: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/Apis_mellifera_carnica_worker_honeycomb.jpg/320px-Apis_mellifera_carnica_worker_honeycomb.jpg",
+    imageCaption: "A typical frame with multiple things happening — eggs, larvae, capped brood, and honey all visible together.",
+  },
 ];
 
 export default function CombGuideScreen() {
@@ -59,6 +136,7 @@ export default function CombGuideScreen() {
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [showImage, setShowImage] = useState<Set<string>>(new Set());
 
   const cardPositions = useRef<Record<string, { top: number; bottom: number }>>({});
 
@@ -69,16 +147,8 @@ export default function CombGuideScreen() {
   const startPulse = (id: string) => {
     Animated.loop(
       Animated.sequence([
-        Animated.timing(pulseAnims[id], {
-          toValue: 1.03,
-          duration: 900,
-          useNativeDriver: Platform.OS !== "web",
-        }),
-        Animated.timing(pulseAnims[id], {
-          toValue: 1,
-          duration: 900,
-          useNativeDriver: Platform.OS !== "web",
-        }),
+        Animated.timing(pulseAnims[id], { toValue: 1.03, duration: 900, useNativeDriver: Platform.OS !== "web" }),
+        Animated.timing(pulseAnims[id], { toValue: 1, duration: 900, useNativeDriver: Platform.OS !== "web" }),
       ])
     ).start();
   };
@@ -92,9 +162,7 @@ export default function CombGuideScreen() {
   useEffect(() => {
     if (isBeginner && !pulsesStarted.current) {
       pulsesStarted.current = true;
-      const timer = setTimeout(() => {
-        FINDINGS.forEach((f) => startPulse(f.id));
-      }, 500);
+      const timer = setTimeout(() => { FINDINGS.forEach((f) => startPulse(f.id)); }, 500);
       return () => clearTimeout(timer);
     }
   }, [isBeginner]);
@@ -122,6 +190,15 @@ export default function CombGuideScreen() {
     });
   };
 
+  const toggleImage = (findingId: string) => {
+    setShowImage((prev) => {
+      const next = new Set(prev);
+      if (next.has(findingId)) next.delete(findingId);
+      else next.add(findingId);
+      return next;
+    });
+  };
+
   const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     if (!isBeginner) return;
     const y = e.nativeEvent.contentOffset.y;
@@ -130,10 +207,7 @@ export default function CombGuideScreen() {
 
     let activeId: string | null = null;
     for (const [id, pos] of Object.entries(cardPositions.current)) {
-      if (viewCenter >= pos.top && viewCenter <= pos.bottom) {
-        activeId = id;
-        break;
-      }
+      if (viewCenter >= pos.top && viewCenter <= pos.bottom) { activeId = id; break; }
     }
 
     if (activeId) {
@@ -166,29 +240,19 @@ export default function CombGuideScreen() {
   return (
     <SafeAreaView style={S.page}>
       <NavBar />
-      <ScrollView
-        contentContainerStyle={S.content}
-        onScroll={handleScroll}
-        scrollEventThrottle={16}
-      >
+      <ScrollView contentContainerStyle={S.content} onScroll={handleScroll} scrollEventThrottle={16}>
         <Text style={S.title}>🔍 Comb Guide</Text>
-        <Text style={S.subtitle}>
-          Tap everything you see. Tap "What am I looking at?" to learn how to identify it.
-        </Text>
+        <Text style={S.subtitle}>Tap everything you see. Tap "What am I looking at?" to learn how to identify it.</Text>
 
         {isBeginner && (
           <View style={S.learningBadge}>
-            <Text style={S.learningBadgeText}>
-              🌱 Learning mode — scroll through to explore each finding
-            </Text>
+            <Text style={S.learningBadgeText}>🌱 Learning mode — scroll through to explore each finding</Text>
           </View>
         )}
 
         {selected.size > 0 && (
           <View style={S.selectionBanner}>
-            <Text style={S.selectionText}>
-              {selected.size} finding{selected.size === 1 ? "" : "s"} selected
-            </Text>
+            <Text style={S.selectionText}>{selected.size} finding{selected.size === 1 ? "" : "s"} selected</Text>
             <Pressable onPress={() => setSelected(new Set())} style={S.clearButton}>
               <Text style={S.clearText}>Clear</Text>
             </Pressable>
@@ -198,59 +262,71 @@ export default function CombGuideScreen() {
         {FINDINGS.map((finding) => {
           const isSelected = selected.has(finding.id);
           const isExpanded = expanded.has(finding.id);
+          const isImageShown = showImage.has(finding.id);
 
           return (
             <Animated.View
               key={finding.id}
               style={[
                 S.cardWrapper,
-                isBeginner && !isExpanded && {
-                  transform: [{ scale: pulseAnims[finding.id] }],
-                },
+                isBeginner && !isExpanded && { transform: [{ scale: pulseAnims[finding.id] }] },
               ]}
               onLayout={(e) => {
                 const { y, height } = e.nativeEvent.layout;
                 cardPositions.current[finding.id] = { top: y, bottom: y + height };
               }}
             >
-              <View style={[
-                S.card,
-                isSelected && S.cardSelected,
-                isExpanded && isBeginner && S.cardActive,
-              ]}>
+              <View style={[S.card, isSelected && S.cardSelected, isExpanded && isBeginner && S.cardActive]}>
+
+                {/* Select tap area */}
                 <Pressable onPress={() => toggleFinding(finding.id)}>
                   <View style={S.cardHeader}>
                     <Text style={S.cardEmoji}>{finding.emoji}</Text>
-                    <Text style={[S.cardTitle, isSelected && S.cardTitleSelected]}>
-                      {finding.title}
-                    </Text>
-                    {isSelected && (
-                      <View style={S.checkBadge}>
-                        <Text style={S.checkText}>✓</Text>
-                      </View>
-                    )}
+                    <Text style={[S.cardTitle, isSelected && S.cardTitleSelected]}>{finding.title}</Text>
+                    {isSelected && <View style={S.checkBadge}><Text style={S.checkText}>✓</Text></View>}
                   </View>
                   <Text style={S.cardText}>{finding.description}</Text>
-                  <Text style={S.tapHint}>
-                    {isSelected ? "✓ Selected — tap to deselect" : "Tap to select"}
-                  </Text>
+                  <Text style={S.tapHint}>{isSelected ? "✓ Selected — tap to deselect" : "Tap to select"}</Text>
                 </Pressable>
 
                 <View style={S.divider} />
 
+                {/* Learn toggle */}
                 <Pressable onPress={() => toggleExpanded(finding.id)} style={S.learnButton}>
-                  <Text style={S.learnButtonText}>
-                    {isExpanded ? "▼ Hide guide" : "👁 What am I looking at?"}
-                  </Text>
+                  <Text style={S.learnButtonText}>{isExpanded ? "▼ Hide guide" : "👁 What am I looking at?"}</Text>
                   {isBeginner && !isExpanded && (
-                    <View style={S.learnHintBadge}>
-                      <Text style={S.learnHintText}>Tap or scroll</Text>
-                    </View>
+                    <View style={S.learnHintBadge}><Text style={S.learnHintText}>Tap or scroll</Text></View>
                   )}
                 </Pressable>
 
+                {/* Expanded learn content */}
                 {isExpanded && (
                   <View style={S.learnContent}>
+
+                    {/* Reference image toggle */}
+                    {finding.referenceImage && (
+                      <Pressable onPress={() => toggleImage(finding.id)} style={S.imageToggleButton}>
+                        <Text style={S.imageToggleText}>
+                          {isImageShown ? "🙈 Hide reference photo" : "📸 See example photo"}
+                        </Text>
+                      </Pressable>
+                    )}
+
+                    {/* Reference image */}
+                    {isImageShown && finding.referenceImage && (
+                      <View style={S.imageContainer}>
+                        <Image
+                          source={{ uri: finding.referenceImage }}
+                          style={S.referenceImage}
+                          resizeMode="cover"
+                        />
+                        {finding.imageCaption && (
+                          <Text style={S.imageCaption}>{finding.imageCaption}</Text>
+                        )}
+                        <Text style={S.imageCredit}>📷 Wikimedia Commons (CC BY-SA 3.0)</Text>
+                      </View>
+                    )}
+
                     <View style={S.learnSection}>
                       <Text style={S.learnSectionTitle}>🔎 What to look for</Text>
                       <Text style={S.learnSectionText}>{finding.whatToLookFor}</Text>
@@ -278,9 +354,7 @@ export default function CombGuideScreen() {
           style={[S.submitButton, selected.size === 0 && S.disabledButton]}
         >
           <Text style={[S.submitText, selected.size === 0 && S.disabledText]}>
-            {selected.size === 0
-              ? "Select findings above"
-              : `Add ${selected.size} Finding${selected.size === 1 ? "" : "s"} to Inspection →`}
+            {selected.size === 0 ? "Select findings above" : `Add ${selected.size} Finding${selected.size === 1 ? "" : "s"} to Inspection →`}
           </Text>
         </Pressable>
       </ScrollView>
@@ -303,13 +377,7 @@ function makeStyles(theme: ReturnType<typeof useAppTheme>) {
     cardWrapper: {
       marginBottom: 12,
       borderRadius: theme.radiusLG,
-      ...(Platform.OS !== "web" ? {
-        shadowColor: theme.honey,
-        shadowOpacity: 0.4,
-        shadowRadius: 12,
-        shadowOffset: { width: 0, height: 0 },
-        elevation: 6,
-      } : {}),
+      ...(Platform.OS !== "web" ? { shadowColor: theme.honey, shadowOpacity: 0.4, shadowRadius: 12, shadowOffset: { width: 0, height: 0 }, elevation: 6 } : {}),
     },
     card: { backgroundColor: theme.bgCard, borderRadius: theme.radiusLG, borderWidth: 2, borderColor: theme.border, overflow: "hidden" },
     cardSelected: { borderColor: theme.honey, backgroundColor: theme.bgCardAlt },
@@ -328,6 +396,15 @@ function makeStyles(theme: ReturnType<typeof useAppTheme>) {
     learnHintBadge: { backgroundColor: theme.honey, paddingVertical: 2, paddingHorizontal: 8, borderRadius: 20 },
     learnHintText: { color: theme.bg, fontSize: theme.fontXS, fontWeight: "800" },
     learnContent: { backgroundColor: theme.bg, borderTopWidth: 1, borderTopColor: theme.border, padding: theme.spaceMD, gap: 14 },
+
+    // Reference image
+    imageToggleButton: { backgroundColor: theme.bgCardAlt, borderWidth: 1, borderColor: theme.honeyLight, padding: theme.spaceSM, borderRadius: theme.radiusSM, alignItems: "center" },
+    imageToggleText: { color: theme.honeyLight, fontWeight: "800", fontSize: theme.fontSM },
+    imageContainer: { borderRadius: theme.radiusMD, overflow: "hidden", borderWidth: 1, borderColor: theme.border },
+    referenceImage: { width: "100%", height: 200 },
+    imageCaption: { color: theme.textSecondary, fontSize: theme.fontXS, padding: theme.spaceSM, lineHeight: 18, backgroundColor: theme.bgCard },
+    imageCredit: { color: theme.textMuted, fontSize: 10, padding: theme.spaceSM, paddingTop: 2, backgroundColor: theme.bgCard, fontStyle: "italic" },
+
     learnSection: { gap: 6 },
     learnSectionTitle: { color: theme.textPrimary, fontWeight: "900", fontSize: theme.fontSM },
     learnSectionText: { color: theme.textSecondary, fontSize: theme.fontSM, lineHeight: 22 },
