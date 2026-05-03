@@ -1,26 +1,31 @@
 /**
  * utils/auth.ts
  *
- * Firebase Authentication utilities.
- * Handles email/password and Google sign-in.
- *
- * Used by:
- *  - app/login.tsx
- *  - context/AuthContext.tsx
+ * Firebase Authentication with AsyncStorage persistence.
+ * Keeps users logged in between app sessions on mobile.
  */
 
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   createUserWithEmailAndPassword,
   getAuth,
   GoogleAuthProvider,
+  initializeAuth,
+  sendPasswordResetEmail,
   signInWithCredential,
   signInWithEmailAndPassword,
   signOut,
-  sendPasswordResetEmail,
 } from "firebase/auth";
+import { Platform } from "react-native";
 import { app } from "./firebase";
 
-export const auth = getAuth(app);
+// Use persistence on native, standard auth on web
+export const auth = Platform.OS === "web"
+  ? getAuth(app)
+  : initializeAuth(app, {
+      persistence: (require("@firebase/auth/react-native") as any).getReactNativePersistence(AsyncStorage),
+    });
+
 export const googleProvider = new GoogleAuthProvider();
 
 /** Sign in with email and password */
@@ -33,7 +38,7 @@ export async function registerWithEmail(email: string, password: string) {
   return createUserWithEmailAndPassword(auth, email, password);
 }
 
-/** Sign in with Google credential (from expo-auth-session) */
+/** Sign in with Google credential */
 export async function loginWithGoogleCredential(idToken: string) {
   const credential = GoogleAuthProvider.credential(idToken);
   return signInWithCredential(auth, credential);
