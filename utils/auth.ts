@@ -1,24 +1,35 @@
 /**
  * utils/auth.ts
  *
- * Firebase Authentication.
- * Uses standard getAuth on all platforms.
- * Note: on React Native, auth state persists via Firebase's built-in
- * token refresh mechanism even without explicit AsyncStorage persistence.
+ * Firebase Authentication with AsyncStorage persistence.
+ * Uses initializeAuth + getReactNativePersistence so auth state
+ * survives app restarts on React Native (iOS + Android).
+ *
+ * Web falls back to standard getAuth since AsyncStorage isn't available.
  */
 
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   createUserWithEmailAndPassword,
   getAuth,
+  getReactNativePersistence,
   GoogleAuthProvider,
+  initializeAuth,
   sendPasswordResetEmail,
   signInWithCredential,
   signInWithEmailAndPassword,
   signOut,
 } from "firebase/auth";
+import { Platform } from "react-native";
 import { app } from "./firebase";
 
-export const auth = getAuth(app);
+// Use AsyncStorage persistence on native, default on web
+export const auth = Platform.OS === "web"
+  ? getAuth(app)
+  : initializeAuth(app, {
+      persistence: getReactNativePersistence(AsyncStorage),
+    });
+
 export const googleProvider = new GoogleAuthProvider();
 
 /** Sign in with email and password */
