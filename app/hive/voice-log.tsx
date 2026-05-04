@@ -4,16 +4,8 @@
  * Voice Log Screen — hands-free hive inspection logging.
  * Speak naturally and the app detects queen/brood/mites/beetle/temperament keywords.
  *
- * Usage:
- *  - From quick inspection: navigates back with detected values as params
- *  - From add inspection: navigates back with full transcript as notes param
- *
- * Receives params:
- *  - id: hiveId
- *  - source: "quick" | "add"
- *
- * Requires expo-speech-recognition (installed via: npx expo install expo-speech-recognition)
- * Note: Requires development build or Expo Go with microphone permission granted.
+ * Fix: applyToInspection uses router.push instead of router.replace so a fresh
+ * instance of quick/add is created and useState initializers pick up voice params.
  */
 
 import {
@@ -24,7 +16,6 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import {
   Alert,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -151,7 +142,6 @@ export default function VoiceLogScreen() {
   const detected = parseTranscript(fullTranscript);
   const hasDetections = detected.queen.length > 0 || detected.brood || detected.mites || detected.hiveBeetles || detected.temperament;
 
-  // Request permissions on mount
   useEffect(() => {
     ExpoSpeechRecognitionModule.requestPermissionsAsync().then((result) => {
       setHasPermission(result.granted);
@@ -161,7 +151,6 @@ export default function VoiceLogScreen() {
     };
   }, []);
 
-  // Speech recognition events
   useSpeechRecognitionEvent("result", (event) => {
     const transcript = event.results[0]?.transcript || "";
     if (event.isFinal) {
@@ -170,12 +159,10 @@ export default function VoiceLogScreen() {
     } else {
       setInterimTranscript(transcript);
     }
-    // Auto-scroll to bottom
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
   });
 
   useSpeechRecognitionEvent("end", () => {
-    // Restart if still supposed to be listening (handles Android timeouts)
     if (isListeningRef.current) {
       ExpoSpeechRecognitionModule.start({
         lang: "en-US",
@@ -234,8 +221,10 @@ export default function VoiceLogScreen() {
       return;
     }
 
+    // Use push (not replace) so a fresh screen instance is created
+    // and useState initializers correctly pick up the voice params
     if (sourceScreen === "quick") {
-      router.replace({
+      router.push({
         pathname: "/hive/inspection/quick",
         params: {
           id: hiveId,
@@ -247,7 +236,7 @@ export default function VoiceLogScreen() {
         },
       });
     } else {
-      router.replace({
+      router.push({
         pathname: "/hive/inspection/add",
         params: {
           id: hiveId,
@@ -264,7 +253,6 @@ export default function VoiceLogScreen() {
       <NavBar />
       <View style={S.container}>
 
-        {/* Transcript area */}
         <ScrollView
           ref={scrollRef}
           style={S.transcriptScroll}
@@ -287,7 +275,6 @@ export default function VoiceLogScreen() {
           )}
         </ScrollView>
 
-        {/* Detected findings */}
         {hasDetections && (
           <View style={S.detectedSection}>
             <Text style={S.detectedLabel}>DETECTED</Text>
@@ -313,7 +300,6 @@ export default function VoiceLogScreen() {
           </View>
         )}
 
-        {/* Big mic button */}
         <View style={S.micSection}>
           <Pressable
             onPress={toggleListening}
@@ -331,7 +317,6 @@ export default function VoiceLogScreen() {
           )}
         </View>
 
-        {/* Action buttons */}
         <View style={S.actions}>
           <Pressable onPress={clearTranscript} style={S.clearButton}>
             <Text style={S.clearText}>🗑️ Clear</Text>
@@ -376,10 +361,7 @@ function makeStyles(theme: ReturnType<typeof useAppTheme>) {
       elevation: 6,
       shadowColor: theme.honey, shadowOpacity: 0.4, shadowRadius: 12, shadowOffset: { width: 0, height: 0 },
     },
-    micButtonActive: {
-      backgroundColor: theme.honey,
-      borderColor: theme.honeyLight,
-    },
+    micButtonActive: { backgroundColor: theme.honey, borderColor: theme.honeyLight },
     micEmoji: { fontSize: 40 },
     micLabel: { color: theme.textMuted, fontSize: theme.fontSM, fontWeight: "700", marginTop: 10 },
     listeningDot: { marginTop: 6 },
