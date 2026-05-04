@@ -6,16 +6,13 @@
  * Beginner mode: hints shown under each category, selected options show descriptions.
  * Queen is multi-select, all others single select.
  *
- * Added: 🎙️ Voice button navigates to voice-log screen.
- * Accepts voice params back from voice-log to pre-fill fields.
- * 
- * pushing to github with a plant note for the commit and push test.
- * 
+ * Voice fix: useEffect watches voice params and applies them after mount,
+ * since useState initializers miss params that arrive after first render.
  */
 
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { addDoc, collection } from "firebase/firestore";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Alert,
   Pressable,
@@ -32,10 +29,10 @@ import { db } from "../../../utils/firebase";
 import { removePendingInspectionBackup, savePendingInspectionBackup } from "../../../utils/localBackup";
 
 const QUEEN_OPTIONS = [
-  { value: "seen",      label: "Seen",         hint: "You spotted the queen herself moving on the comb." },
-  { value: "eggs",      label: "Eggs",         hint: "Tiny white grains standing upright in cells — queen was here within 3 days." },
-  { value: "not_found", label: "Not Found",    hint: "Could not locate queen or fresh eggs. May need a recheck." },
-  { value: "cells",     label: "Queen Cells",  hint: "Large peanut-shaped cells — bees may be preparing to swarm or replace queen." },
+  { value: "seen",      label: "Seen",        hint: "You spotted the queen herself moving on the comb." },
+  { value: "eggs",      label: "Eggs",        hint: "Tiny white grains standing upright in cells — queen was here within 3 days." },
+  { value: "not_found", label: "Not Found",   hint: "Could not locate queen or fresh eggs. May need a recheck." },
+  { value: "cells",     label: "Queen Cells", hint: "Large peanut-shaped cells — bees may be preparing to swarm or replace queen." },
 ];
 
 const BROOD_OPTIONS = [
@@ -46,11 +43,11 @@ const BROOD_OPTIONS = [
 ];
 
 const MITES_OPTIONS = [
-  { value: "0",    label: "0",     hint: "No mites visible on bees or in cells." },
-  { value: "2",    label: "1-2",   hint: "Very low mite count — monitor regularly." },
-  { value: "5",    label: "3-5",   hint: "Moderate — consider treatment soon." },
-  { value: "6-10", label: "6-10",  hint: "High — treatment recommended." },
-  { value: "10+",  label: "10+",   hint: "Critical — treat immediately." },
+  { value: "0",    label: "0",    hint: "No mites visible on bees or in cells." },
+  { value: "2",    label: "1-2",  hint: "Very low mite count — monitor regularly." },
+  { value: "5",    label: "3-5",  hint: "Moderate — consider treatment soon." },
+  { value: "6-10", label: "6-10", hint: "High — treatment recommended." },
+  { value: "10+",  label: "10+",  hint: "Critical — treat immediately." },
 ];
 
 const BEETLE_OPTIONS = [
@@ -90,21 +87,29 @@ export default function QuickInspectionScreen() {
 
   const hiveId = id ? String(id) : "";
 
-  // Initialize from voice params if provided
-  const [queenSelections, setQueenSelections] = useState<Set<string>>(() => {
+  const [queenSelections, setQueenSelections] = useState<Set<string>>(new Set());
+  const [brood, setBrood] = useState("");
+  const [mites, setMites] = useState("");
+  const [hiveBeetles, setHiveBeetles] = useState("");
+  const [temperament, setTemperament] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [voiceFilled, setVoiceFilled] = useState(false);
+
+  // Apply voice params via useEffect so they're picked up even when
+  // params arrive after the component first mounts
+  useEffect(() => {
+    const hasVoice = voiceQueen || voiceBrood || voiceMites || voiceBeetles || voiceTemperament;
+    if (!hasVoice) return;
     if (voiceQueen) {
       const vals = String(voiceQueen).split(",").map((s) => s.trim()).filter(Boolean);
-      return new Set(vals);
+      if (vals.length > 0) setQueenSelections(new Set(vals));
     }
-    return new Set();
-  });
-  const [brood, setBrood] = useState(voiceBrood ? String(voiceBrood) : "");
-  const [mites, setMites] = useState(voiceMites ? String(voiceMites) : "");
-  const [hiveBeetles, setHiveBeetles] = useState(voiceBeetles ? String(voiceBeetles) : "");
-  const [temperament, setTemperament] = useState(voiceTemperament ? String(voiceTemperament) : "");
-  const [saving, setSaving] = useState(false);
-
-  const hasVoiceFill = !!(voiceQueen || voiceBrood || voiceMites || voiceBeetles || voiceTemperament);
+    if (voiceBrood) setBrood(String(voiceBrood));
+    if (voiceMites) setMites(String(voiceMites));
+    if (voiceBeetles) setHiveBeetles(String(voiceBeetles));
+    if (voiceTemperament) setTemperament(String(voiceTemperament));
+    setVoiceFilled(true);
+  }, [voiceQueen, voiceBrood, voiceMites, voiceBeetles, voiceTemperament]);
 
   const toggleQueen = (value: string) => {
     setQueenSelections((prev) => {
@@ -118,11 +123,9 @@ export default function QuickInspectionScreen() {
   const handleSave = async () => {
     if (saving) return;
     if (!hiveId) { Alert.alert("Missing Hive", "No hive ID provided."); return; }
-
     const queenValue = Array.from(queenSelections).join(", ");
     const backupId = `quick_inspection_${Date.now()}`;
     const now = new Date();
-
     const inspectionData = {
       id: backupId, hiveId,
       queen: queenValue, brood, mites, hiveBeetles, temperament,
@@ -133,7 +136,6 @@ export default function QuickInspectionScreen() {
       synced: false,
       quickMode: true,
     };
-
     try {
       setSaving(true);
       await savePendingInspectionBackup(inspectionData);
@@ -200,8 +202,7 @@ export default function QuickInspectionScreen() {
           </Pressable>
         </View>
 
-        {/* Voice fill banner */}
-        {hasVoiceFill && (
+        {voiceFilled && (
           <View style={S.voiceFillBanner}>
             <Text style={S.voiceFillText}>🎙️ Fields pre-filled from voice — review and adjust below</Text>
           </View>
