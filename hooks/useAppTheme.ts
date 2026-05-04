@@ -12,7 +12,7 @@
  * my note to self: add a plant note here for the github commit and push test.
  * 
  * 
- * /
+ */
 
 import { useSettingsContext } from "../context/SettingsContext";
 import { AccentColor } from "../utils/settingsStore";
