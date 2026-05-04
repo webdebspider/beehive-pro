@@ -2,10 +2,11 @@
  * app/hive/voice-log.tsx
  *
  * Voice Log Screen — hands-free hive inspection logging.
- * Speak naturally and the app detects queen/brood/mites/beetle/temperament keywords.
+ * Speak naturally, detected fields shown as badges, tap Save to write
+ * directly to Firestore. No routing params needed — eliminates the
+ * timing issue of trying to pre-fill another screen.
  *
- * Fix: applyToInspection uses router.push instead of router.replace so a fresh
- * instance of quick/add is created and useState initializers pick up voice params.
+ * Flow: Speak → detect keywords → review badges → Save Inspection
  */
 
 import {
@@ -13,6 +14,7 @@ import {
   useSpeechRecognitionEvent,
 } from "expo-speech-recognition";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { useEffect, useRef, useState } from "react";
 import {
   Alert,
@@ -25,6 +27,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import NavBar from "../../components/NavBar";
 import { useAppTheme } from "../../hooks/useAppTheme";
+import { db } from "../../utils/firebase";
 
 // ── Keyword Parser ─────────────────────────────────────────────────────────────
 
@@ -56,7 +59,7 @@ function parseTranscript(text: string): DetectedFindings {
   if (/no queen|queen not found|couldn.t find|can.t find queen|missing queen|didn.t see queen/.test(t)) {
     if (!findings.queen.includes("not_found")) findings.queen.push("not_found");
   }
-  if (/queen cell|swarm cell|queen cup|supersedure|queen cups/.test(t)) {
+  if (/queen cell|swarm cell|queen cup|supersedure/.test(t)) {
     if (!findings.queen.includes("cells")) findings.queen.push("cells");
   }
 
@@ -80,7 +83,7 @@ function parseTranscript(text: string): DetectedFindings {
   else if (/heavy beetle|many beetle|lots of beetle|infest/.test(t)) findings.hiveBeetles = "heavy";
 
   // Temperament
-  if (/calm|gentle|docile|peaceful|relaxed|quiet bee/.test(t)) findings.temperament = "calm";
+  if (/calm|gentle|docile|peaceful|relaxed/.test(t)) findings.temperament = "calm";
   else if (/defensive|aggressive|angry|stinging|hot bee|mean|attack/.test(t)) findings.temperament = "defensive";
   else if (/active|busy|flying around/.test(t)) findings.temperament = "active";
 
@@ -94,51 +97,23 @@ const QUEEN_LABELS: Record<string, string> = {
   cells: "🔮 Queen cells",
 };
 
-const BROOD_LABELS: Record<string, string> = {
-  strong: "🐛 Strong brood",
-  medium: "🐛 Medium brood",
-  weak: "🐛 Weak brood",
-  spotty: "🐛 Spotty brood",
-};
-
-const MITE_LABELS: Record<string, string> = {
-  "0": "🔬 0 mites",
-  "2": "🔬 1-2 mites",
-  "5": "🔬 3-5 mites",
-  "6-10": "🔬 6-10 mites",
-  "10+": "🔬 10+ mites",
-};
-
-const BEETLE_LABELS: Record<string, string> = {
-  none: "🪲 No beetles",
-  few: "🪲 Few beetles",
-  moderate: "🪲 Moderate beetles",
-  heavy: "🪲 Heavy beetles",
-};
-
-const TEMP_LABELS: Record<string, string> = {
-  calm: "😊 Calm",
-  active: "⚡ Active",
-  defensive: "😤 Defensive",
-};
-
 // ── Screen ────────────────────────────────────────────────────────────────────
 
 export default function VoiceLogScreen() {
   const router = useRouter();
   const theme = useAppTheme();
-  const { id, source } = useLocalSearchParams<{ id?: string; source?: string }>();
+  const { id } = useLocalSearchParams<{ id?: string }>();
   const hiveId = id ? String(id) : "";
-  const sourceScreen = source === "add" ? "add" : "quick";
 
   const [isListening, setIsListening] = useState(false);
   const [finalTranscript, setFinalTranscript] = useState("");
   const [interimTranscript, setInterimTranscript] = useState("");
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+  const [saving, setSaving] = useState(false);
   const isListeningRef = useRef(false);
   const scrollRef = useRef<ScrollView>(null);
 
-  const fullTranscript = finalTranscript + (interimTranscript ? " " + interimTranscript : "");
+  const fullTranscript = (finalTranscript + (interimTranscript ? " " + interimTranscript : "")).trim();
   const detected = parseTranscript(fullTranscript);
   const hasDetections = detected.queen.length > 0 || detected.brood || detected.mites || detected.hiveBeetles || detected.temperament;
 
@@ -164,11 +139,7 @@ export default function VoiceLogScreen() {
 
   useSpeechRecognitionEvent("end", () => {
     if (isListeningRef.current) {
-      ExpoSpeechRecognitionModule.start({
-        lang: "en-US",
-        interimResults: true,
-        continuous: true,
-      });
+      ExpoSpeechRecognitionModule.start({ lang: "en-US", interimResults: true, continuous: true });
     } else {
       setIsListening(false);
       setInterimTranscript("");
@@ -176,7 +147,6 @@ export default function VoiceLogScreen() {
   });
 
   useSpeechRecognitionEvent("error", (event) => {
-    console.log("Speech error:", event.error, event.message);
     if (event.error !== "aborted" && event.error !== "no-speech") {
       setIsListening(false);
       isListeningRef.current = false;
@@ -191,11 +161,7 @@ export default function VoiceLogScreen() {
     isListeningRef.current = true;
     setIsListening(true);
     setInterimTranscript("");
-    ExpoSpeechRecognitionModule.start({
-      lang: "en-US",
-      interimResults: true,
-      continuous: true,
-    });
+    ExpoSpeechRecognitionModule.start({ lang: "en-US", interimResults: true, continuous: true });
   };
 
   const stopListening = () => {
@@ -215,34 +181,38 @@ export default function VoiceLogScreen() {
     setInterimTranscript("");
   };
 
-  const applyToInspection = () => {
-    if (!fullTranscript.trim() && !hasDetections) {
-      Alert.alert("Nothing to apply", "Speak something first then tap Apply.");
+  const handleSave = async () => {
+    if (!hiveId) { Alert.alert("Error", "No hive ID — go back and try again."); return; }
+    if (!fullTranscript && !hasDetections) {
+      Alert.alert("Nothing to save", "Speak something first.");
       return;
     }
-
-    // Use push (not replace) so a fresh screen instance is created
-    // and useState initializers correctly pick up the voice params
-    if (sourceScreen === "quick") {
-      router.push({
-        pathname: "/hive/inspection/quick",
-        params: {
-          id: hiveId,
-          voiceQueen: detected.queen.join(","),
-          voiceBrood: detected.brood,
-          voiceMites: detected.mites,
-          voiceBeetles: detected.hiveBeetles,
-          voiceTemperament: detected.temperament,
-        },
+    if (isListening) stopListening();
+    setSaving(true);
+    try {
+      const queenValue = detected.queen.join(", ");
+      const now = new Date();
+      await addDoc(collection(db, "hives", hiveId, "inspections"), {
+        hiveId,
+        queen: queenValue,
+        brood: detected.brood,
+        mites: detected.mites,
+        hiveBeetles: detected.hiveBeetles,
+        temperament: detected.temperament,
+        notes: `Voice inspection:\n${fullTranscript}`,
+        voiceMode: true,
+        quickMode: true,
+        date: now.toISOString(),
+        createdAt: serverTimestamp(),
       });
-    } else {
-      router.push({
-        pathname: "/hive/inspection/add",
-        params: {
-          id: hiveId,
-          notes: fullTranscript.trim(),
-        },
-      });
+      Alert.alert("Inspection Saved! 🐝", "Voice inspection recorded.", [
+        { text: "View Hive", onPress: () => router.replace({ pathname: "/hive/[id]", params: { id: hiveId } }) },
+        { text: "Go Home", onPress: () => router.replace("/hive") },
+      ]);
+    } catch {
+      Alert.alert("Save Failed", "Could not save inspection. Try again.");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -253,28 +223,24 @@ export default function VoiceLogScreen() {
       <NavBar />
       <View style={S.container}>
 
-        <ScrollView
-          ref={scrollRef}
-          style={S.transcriptScroll}
-          contentContainerStyle={S.transcriptContent}
-        >
+        {/* Transcript */}
+        <ScrollView ref={scrollRef} style={S.transcriptScroll} contentContainerStyle={S.transcriptContent}>
           <Text style={S.transcriptLabel}>TRANSCRIPT</Text>
-          {fullTranscript.trim() ? (
+          {fullTranscript ? (
             <>
               <Text style={S.transcriptText}>{finalTranscript}</Text>
-              {interimTranscript ? (
-                <Text style={S.interimText}>{interimTranscript}</Text>
-              ) : null}
+              {interimTranscript ? <Text style={S.interimText}>{interimTranscript}</Text> : null}
             </>
           ) : (
             <Text style={S.placeholderText}>
               {isListening
                 ? "Listening... speak naturally about your hive 🐝"
-                : "Tap the mic button and speak naturally.\n\nTry: \"Queen seen, strong brood, no mites, bees are calm\""}
+                : `Tap the mic and speak naturally.\n\nTry: "Queen seen, eggs present, strong brood, no mites, bees are calm"`}
             </Text>
           )}
         </ScrollView>
 
+        {/* Detected findings */}
         {hasDetections && (
           <View style={S.detectedSection}>
             <Text style={S.detectedLabel}>DETECTED</Text>
@@ -284,51 +250,34 @@ export default function VoiceLogScreen() {
                   <Text style={S.badgeText}>{QUEEN_LABELS[q] || q}</Text>
                 </View>
               ))}
-              {detected.brood ? (
-                <View style={S.badge}><Text style={S.badgeText}>{BROOD_LABELS[detected.brood]}</Text></View>
-              ) : null}
-              {detected.mites ? (
-                <View style={S.badge}><Text style={S.badgeText}>{MITE_LABELS[detected.mites]}</Text></View>
-              ) : null}
-              {detected.hiveBeetles ? (
-                <View style={S.badge}><Text style={S.badgeText}>{BEETLE_LABELS[detected.hiveBeetles]}</Text></View>
-              ) : null}
-              {detected.temperament ? (
-                <View style={S.badge}><Text style={S.badgeText}>{TEMP_LABELS[detected.temperament]}</Text></View>
-              ) : null}
+              {detected.brood ? <View style={S.badge}><Text style={S.badgeText}>🐛 {detected.brood} brood</Text></View> : null}
+              {detected.mites ? <View style={S.badge}><Text style={S.badgeText}>🔬 {detected.mites} mites</Text></View> : null}
+              {detected.hiveBeetles ? <View style={S.badge}><Text style={S.badgeText}>🪲 {detected.hiveBeetles} beetles</Text></View> : null}
+              {detected.temperament ? <View style={S.badge}><Text style={S.badgeText}>😊 {detected.temperament}</Text></View> : null}
             </View>
           </View>
         )}
 
+        {/* Mic button */}
         <View style={S.micSection}>
-          <Pressable
-            onPress={toggleListening}
-            style={[S.micButton, isListening && S.micButtonActive]}
-          >
+          <Pressable onPress={toggleListening} style={[S.micButton, isListening && S.micButtonActive]}>
             <Text style={S.micEmoji}>{isListening ? "⏹️" : "🎙️"}</Text>
           </Pressable>
-          <Text style={S.micLabel}>
-            {isListening ? "Tap to stop" : "Tap to speak"}
-          </Text>
-          {isListening && (
-            <View style={S.listeningDot}>
-              <Text style={S.listeningText}>● LIVE</Text>
-            </View>
-          )}
+          <Text style={S.micLabel}>{isListening ? "Tap to stop" : "Tap to speak"}</Text>
+          {isListening && <Text style={S.listeningText}>● LIVE</Text>}
         </View>
 
+        {/* Actions */}
         <View style={S.actions}>
           <Pressable onPress={clearTranscript} style={S.clearButton}>
             <Text style={S.clearText}>🗑️ Clear</Text>
           </Pressable>
           <Pressable
-            onPress={applyToInspection}
-            disabled={!fullTranscript.trim() && !hasDetections}
-            style={[S.applyButton, !fullTranscript.trim() && !hasDetections && S.disabledButton]}
+            onPress={handleSave}
+            disabled={saving || (!fullTranscript && !hasDetections)}
+            style={[S.saveButton, (saving || (!fullTranscript && !hasDetections)) && S.disabledButton]}
           >
-            <Text style={S.applyText}>
-              {sourceScreen === "quick" ? "Apply to Inspection →" : "Add to Notes →"}
-            </Text>
+            <Text style={S.saveText}>{saving ? "Saving..." : "💾 Save Inspection"}</Text>
           </Pressable>
         </View>
 
@@ -355,22 +304,19 @@ function makeStyles(theme: ReturnType<typeof useAppTheme>) {
     micSection: { alignItems: "center", paddingVertical: theme.spaceMD },
     micButton: {
       width: 100, height: 100, borderRadius: 50,
-      backgroundColor: theme.bgCard,
-      borderWidth: 3, borderColor: theme.honey,
+      backgroundColor: theme.bgCard, borderWidth: 3, borderColor: theme.honey,
       justifyContent: "center", alignItems: "center",
-      elevation: 6,
-      shadowColor: theme.honey, shadowOpacity: 0.4, shadowRadius: 12, shadowOffset: { width: 0, height: 0 },
+      elevation: 6, shadowColor: theme.honey, shadowOpacity: 0.4, shadowRadius: 12, shadowOffset: { width: 0, height: 0 },
     },
     micButtonActive: { backgroundColor: theme.honey, borderColor: theme.honeyLight },
     micEmoji: { fontSize: 40 },
     micLabel: { color: theme.textMuted, fontSize: theme.fontSM, fontWeight: "700", marginTop: 10 },
-    listeningDot: { marginTop: 6 },
-    listeningText: { color: theme.danger, fontWeight: "900", fontSize: theme.fontXS },
+    listeningText: { color: theme.danger, fontWeight: "900", fontSize: theme.fontXS, marginTop: 6 },
     actions: { flexDirection: "row", gap: 10 },
     clearButton: { backgroundColor: theme.bgCardAlt, padding: 14, borderRadius: theme.radiusMD, alignItems: "center", borderWidth: 1, borderColor: theme.border, flex: 1 },
     clearText: { color: theme.textSecondary, fontWeight: "800", fontSize: theme.fontSM },
-    applyButton: { backgroundColor: theme.honey, padding: 14, borderRadius: theme.radiusMD, alignItems: "center", flex: 2 },
+    saveButton: { backgroundColor: theme.green, padding: 14, borderRadius: theme.radiusMD, alignItems: "center", flex: 2 },
     disabledButton: { backgroundColor: theme.textMuted },
-    applyText: { color: theme.bg, fontWeight: "900", fontSize: theme.fontSM },
+    saveText: { color: "#fff", fontWeight: "900", fontSize: theme.fontSM },
   });
 }
