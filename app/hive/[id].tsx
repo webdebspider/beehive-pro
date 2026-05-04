@@ -4,6 +4,15 @@
  * Hive Detail Screen — shows all inspections for a single hive.
  *
  * Added: due/overdue status badge, reminders button, supplies/treatment button.
+ * 
+ * new added features:
+ * feat: reminders + supplies confirmed working on device
+
+- Dashboard showing Beehive Pro+ with due status badges
+- Reminders saving to Firestore with per-hive overrides
+- Supplies inventory with low stock alerts working
+- All screens clean and functional, ready for next round of polish and testing.
+ * 
  */
 
 import { useLocalSearchParams, useRouter } from "expo-router";
