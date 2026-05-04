@@ -21,27 +21,12 @@ export default function Settings() {
   const theme = useAppTheme();
   const S = makeStyles(theme);
 
-  // ── Option button helper ──────────────────────────────────────────────────
-
   const OptionButton = ({
-    label,
-    selected,
-    onPress,
-    emoji,
-  }: {
-    label: string;
-    selected: boolean;
-    onPress: () => void;
-    emoji?: string;
-  }) => (
-    <Pressable
-      onPress={onPress}
-      style={[S.optionButton, selected && S.optionButtonSelected]}
-    >
+    label, selected, onPress, emoji,
+  }: { label: string; selected: boolean; onPress: () => void; emoji?: string }) => (
+    <Pressable onPress={onPress} style={[S.optionButton, selected && S.optionButtonSelected]}>
       {emoji && <Text style={S.optionEmoji}>{emoji}</Text>}
-      <Text style={[S.optionText, selected && S.optionTextSelected]}>
-        {label}
-      </Text>
+      <Text style={[S.optionText, selected && S.optionTextSelected]}>{label}</Text>
       {selected && <Text style={S.optionCheck}>✓</Text>}
     </Pressable>
   );
@@ -51,7 +36,7 @@ export default function Settings() {
       <NavBar />
       <ScrollView contentContainerStyle={S.content}>
         <Text style={S.title}>⚙️ Settings</Text>
-        <Text style={S.subtitle}>Customize your Beehive Pro experience</Text>
+        <Text style={S.subtitle}>Customize your Beehive Pro+ experience</Text>
 
         {/* ── App Mode ── */}
         <Text style={S.sectionLabel}>APP MODE</Text>
@@ -61,8 +46,6 @@ export default function Settings() {
           <OptionButton emoji="🐝" label="Pro" selected={settings.appMode === "pro"} onPress={() => updateSettings({ appMode: "pro" as AppMode })} />
           <OptionButton emoji="⚡" label="Minimal" selected={settings.appMode === "minimal"} onPress={() => updateSettings({ appMode: "minimal" as AppMode })} />
         </View>
-
-        {/* Mode description */}
         <View style={S.modeDescCard}>
           {settings.appMode === "beginner" && (
             <>
@@ -106,22 +89,11 @@ export default function Settings() {
             <Pressable
               key={accent.id}
               onPress={() => updateSettings({ accentColor: accent.id })}
-              style={[
-                S.colorSwatch,
-                { borderColor: accent.color },
-                settings.accentColor === accent.id && { backgroundColor: accent.color },
-              ]}
+              style={[S.colorSwatch, { borderColor: accent.color }, settings.accentColor === accent.id && { backgroundColor: accent.color }]}
             >
               <Text style={S.colorSwatchEmoji}>{accent.emoji}</Text>
-              <Text style={[
-                S.colorSwatchLabel,
-                settings.accentColor === accent.id && { color: theme.bg },
-              ]}>
-                {accent.label}
-              </Text>
-              {settings.accentColor === accent.id && (
-                <Text style={[S.colorSwatchCheck, { color: theme.bg }]}>✓</Text>
-              )}
+              <Text style={[S.colorSwatchLabel, settings.accentColor === accent.id && { color: theme.bg }]}>{accent.label}</Text>
+              {settings.accentColor === accent.id && <Text style={[S.colorSwatchCheck, { color: theme.bg }]}>✓</Text>}
             </Pressable>
           ))}
         </View>
@@ -135,8 +107,6 @@ export default function Settings() {
           <OptionButton label="Large" selected={settings.fontSize === "large"} onPress={() => updateSettings({ fontSize: "large" as FontSize })} />
           <OptionButton label="XL" selected={settings.fontSize === "xlarge"} onPress={() => updateSettings({ fontSize: "xlarge" as FontSize })} />
         </View>
-
-        {/* Font preview */}
         <View style={S.fontPreviewCard}>
           <Text style={[S.fontPreviewTitle, { fontSize: theme.fontLG }]}>Preview text</Text>
           <Text style={[S.fontPreviewBody, { fontSize: theme.fontMD }]}>This is how your inspection notes will look at this font size.</Text>
@@ -148,12 +118,17 @@ export default function Settings() {
         <View style={S.infoCard}>
           <View style={S.infoRow}>
             <Text style={S.infoLabel}>App</Text>
-            <Text style={S.infoValue}>Beehive Pro</Text>
+            <Text style={S.infoValue}>Beehive Pro+</Text>
           </View>
           <View style={S.infoDivider} />
           <View style={S.infoRow}>
             <Text style={S.infoLabel}>Version</Text>
-            <Text style={S.infoValue}>1.0.0 (dev)</Text>
+            <Text style={S.infoValue}>1.0.0</Text>
+          </View>
+          <View style={S.infoDivider} />
+          <View style={S.infoRow}>
+            <Text style={S.infoLabel}>Developer</Text>
+            <Text style={S.infoValue}>WebDebSpider's Designs</Text>
           </View>
           <View style={S.infoDivider} />
           <View style={S.infoRow}>
@@ -162,25 +137,42 @@ export default function Settings() {
           </View>
         </View>
 
-        {/* ── Coming Soon ── */}
-        <Text style={S.sectionLabel}>COMING SOON</Text>
+        {/* ── What's in the app ── */}
+        <Text style={S.sectionLabel}>FEATURES</Text>
         <View style={S.infoCard}>
           {[
-            "🗺️ Forage & environment mapping",
-            "📸 Photo annotation tools",
+            "⚡ Quick tap inspections",
+            "🎙️ Voice inspection logging",
+            "🔬 AI comb photo analysis",
+            "🔍 Interactive Comb Guide",
+            "✏️ Photo annotation tools",
             "🧑‍🏫 Mentor sharing system",
-            "🔔 Inspection reminders",
-            "🎙️ Voice notes",
+            "🌿 Forage & environment mapping",
+            "📊 Hive health charts",
+            "☁️ Offline sync",
           ].map((item) => (
             <Text key={item} style={S.comingSoonItem}>{item}</Text>
           ))}
         </View>
+
+        {/* ── Coming Soon ── */}
+        <Text style={S.sectionLabel}>COMING SOON</Text>
+        <View style={S.infoCard}>
+          {[
+            "🔔 Inspection reminders",
+            "🎥 Video mentor chat",
+            "🌱 AI plant identification",
+            "📍 Hive location sharing",
+          ].map((item) => (
+            <Text key={item} style={S.comingSoonItem}>{item}</Text>
+          ))}
+        </View>
+
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-// Dynamic styles based on current theme
 function makeStyles(theme: ReturnType<typeof useAppTheme>) {
   return StyleSheet.create({
     page: { flex: 1, backgroundColor: theme.bg },
@@ -189,71 +181,25 @@ function makeStyles(theme: ReturnType<typeof useAppTheme>) {
     subtitle: { color: theme.textMuted, fontSize: theme.fontSM, marginBottom: theme.spaceLG },
     sectionLabel: { color: theme.textMuted, fontSize: theme.fontXS, fontWeight: "800", letterSpacing: 1.5, marginBottom: 4, marginTop: theme.spaceLG },
     sectionHint: { color: theme.textMuted, fontSize: theme.fontXS, marginBottom: theme.spaceSM, fontStyle: "italic" },
-
-    // Option buttons
     optionRow: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
-    optionButton: {
-      flex: 1,
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 6,
-      backgroundColor: theme.bgCard,
-      padding: 12,
-      borderRadius: theme.radiusMD,
-      borderWidth: 2,
-      borderColor: theme.border,
-      minWidth: 80,
-    },
+    optionButton: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: theme.bgCard, padding: 12, borderRadius: theme.radiusMD, borderWidth: 2, borderColor: theme.border, minWidth: 80 },
     optionButtonSelected: { borderColor: theme.honey, backgroundColor: theme.bgCardAlt },
     optionEmoji: { fontSize: 16 },
     optionText: { color: theme.textSecondary, fontWeight: "700", fontSize: theme.fontSM },
     optionTextSelected: { color: theme.honey },
     optionCheck: { color: theme.honey, fontWeight: "900", fontSize: theme.fontXS },
-
-    // Mode description card
-    modeDescCard: {
-      backgroundColor: theme.bgCardAlt,
-      padding: theme.spaceMD,
-      borderRadius: theme.radiusMD,
-      marginTop: theme.spaceSM,
-      borderWidth: 1,
-      borderColor: theme.border,
-    },
+    modeDescCard: { backgroundColor: theme.bgCardAlt, padding: theme.spaceMD, borderRadius: theme.radiusMD, marginTop: theme.spaceSM, borderWidth: 1, borderColor: theme.border },
     modeDescTitle: { color: theme.honey, fontWeight: "900", fontSize: theme.fontSM, marginBottom: 6 },
     modeDescText: { color: theme.textSecondary, fontSize: theme.fontSM, lineHeight: 20 },
-
-    // Color swatches
     colorRow: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
-    colorSwatch: {
-      flex: 1,
-      alignItems: "center",
-      padding: 12,
-      borderRadius: theme.radiusMD,
-      borderWidth: 2,
-      backgroundColor: theme.bgCard,
-      minWidth: 70,
-      gap: 4,
-    },
+    colorSwatch: { flex: 1, alignItems: "center", padding: 12, borderRadius: theme.radiusMD, borderWidth: 2, backgroundColor: theme.bgCard, minWidth: 70, gap: 4 },
     colorSwatchEmoji: { fontSize: 20 },
     colorSwatchLabel: { color: theme.textSecondary, fontSize: theme.fontXS, fontWeight: "700" },
     colorSwatchCheck: { fontSize: theme.fontXS, fontWeight: "900" },
-
-    // Font preview card
-    fontPreviewCard: {
-      backgroundColor: theme.bgCard,
-      padding: theme.spaceMD,
-      borderRadius: theme.radiusMD,
-      marginTop: theme.spaceSM,
-      borderWidth: 1,
-      borderColor: theme.border,
-      gap: 8,
-    },
+    fontPreviewCard: { backgroundColor: theme.bgCard, padding: theme.spaceMD, borderRadius: theme.radiusMD, marginTop: theme.spaceSM, borderWidth: 1, borderColor: theme.border, gap: 8 },
     fontPreviewTitle: { color: theme.textPrimary, fontWeight: "900" },
     fontPreviewBody: { color: theme.textSecondary, lineHeight: 24 },
     fontPreviewSmall: { color: theme.textMuted },
-
-    // Info card
     infoCard: { backgroundColor: theme.bgCard, borderRadius: theme.radiusMD, borderWidth: 1, borderColor: theme.border, overflow: "hidden" },
     infoRow: { flexDirection: "row", justifyContent: "space-between", padding: theme.spaceMD },
     infoLabel: { color: theme.textMuted, fontSize: theme.fontSM },
