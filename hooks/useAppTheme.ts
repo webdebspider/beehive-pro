@@ -8,7 +8,10 @@
  * Usage on any screen:
  *   const theme = useAppTheme();
  *   // Use theme.bg, theme.honey, theme.fontMD etc instead of T directly
- */
+ *
+ * my note to self: add a plant note here for the github commit and push test
+ * 
+ * /
 
 import { useSettingsContext } from "../context/SettingsContext";
 import { AccentColor } from "../utils/settingsStore";
