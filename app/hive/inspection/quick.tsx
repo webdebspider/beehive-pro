@@ -8,6 +8,9 @@
  *
  * Added: 🎙️ Voice button navigates to voice-log screen.
  * Accepts voice params back from voice-log to pre-fill fields.
+ * 
+ * pushing to github with a plant note for the commit and push test.
+ * 
  */
 
 import { useLocalSearchParams, useRouter } from "expo-router";
