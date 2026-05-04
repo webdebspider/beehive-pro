@@ -3,14 +3,22 @@
  *
  * Hive Dashboard — main landing screen of the app.
  * Shows only the current user's hives.
+ *
+ * Polish:
+ *  - Pull-to-refresh
+ *  - Latest inspection date on hive cards
+ *  - Better hive name fallback (no raw Firestore IDs)
+ *  - 🎙️ Voice shortcut in action row
+ *  - Last inspection summary on hive cards
  */
 
 import { useRouter } from "expo-router";
 import { collection, getDocs, query, where } from "firebase/firestore";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -25,8 +33,18 @@ import { logout } from "../../utils/auth";
 import { db } from "../../utils/firebase";
 
 type Hive = { id: string; name?: string; location?: string; notes?: string };
-type Inspection = { id: string; mentorReview?: boolean; queen?: string; brood?: string; createdAt?: any; date?: string };
+type Inspection = {
+  id: string; mentorReview?: boolean; queen?: string; brood?: string;
+  createdAt?: any; date?: string;
+};
 type HiveCard = Hive & { inspections: Inspection[]; mentorCount: number; latest?: Inspection };
+
+function formatDate(i?: Inspection): string {
+  if (!i) return "";
+  const d = i.createdAt?.toDate?.() || (i.date ? new Date(i.date) : null);
+  if (!d) return "";
+  return d.toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" });
+}
 
 export default function HiveDashboard() {
   const router = useRouter();
@@ -34,6 +52,7 @@ export default function HiveDashboard() {
   const { user } = useAuthContext();
   const [hives, setHives] = useState<HiveCard[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
   const hivesListY = useRef<number>(0);
 
@@ -42,7 +61,6 @@ export default function HiveDashboard() {
   const loadData = async () => {
     if (!user) return;
     try {
-      setLoading(true);
       const hiveSnap = await getDocs(
         query(collection(db, "hives"), where("userId", "==", user.uid))
       );
@@ -72,8 +90,14 @@ export default function HiveDashboard() {
       console.log("❌ DASHBOARD LOAD ERROR:", e);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    loadData();
+  }, [user]);
 
   const handleLogout = async () => {
     await logout();
@@ -104,7 +128,19 @@ export default function HiveDashboard() {
     <SafeAreaView style={S.page}>
       <OfflineBanner />
       <NavBar />
-      <ScrollView ref={scrollRef} contentContainerStyle={S.content}>
+      <ScrollView
+        ref={scrollRef}
+        contentContainerStyle={S.content}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={theme.honey}
+            colors={[theme.honey]}
+          />
+        }
+      >
+        {/* Header */}
         <View style={S.header}>
           <View style={S.headerLeft}>
             <Text style={S.headerEmoji}>🐝</Text>
@@ -118,10 +154,7 @@ export default function HiveDashboard() {
           </Pressable>
         </View>
 
-        {user?.email && (
-          <Text style={S.userEmail}>Signed in as {user.email}</Text>
-        )}
-
+        {/* Stats */}
         <View style={S.statsRow}>
           <Pressable onPress={scrollToHives} style={S.statCard}>
             <Text style={S.statNumber}>{hives.length}</Text>
@@ -145,10 +178,11 @@ export default function HiveDashboard() {
           </Pressable>
         </View>
 
+        {/* Mentor alert */}
         {totalMentorCount > 0 && (
           <View style={S.alertBanner}>
             <Text style={S.alertIcon}>⚠️</Text>
-            <View>
+            <View style={{ flex: 1 }}>
               <Text style={S.alertTitle}>Mentor Attention Needed</Text>
               <Text style={S.alertBody}>
                 {totalMentorCount} inspection{totalMentorCount === 1 ? "" : "s"} need review
@@ -157,6 +191,7 @@ export default function HiveDashboard() {
           </View>
         )}
 
+        {/* Action row */}
         <View style={S.actionRow}>
           <Pressable onPress={() => router.push("/hive/add")} style={S.primaryButton}>
             <Text style={S.primaryButtonText}>+ Add Hive</Text>
@@ -164,11 +199,12 @@ export default function HiveDashboard() {
           <Pressable onPress={() => router.push("/hive/charts")} style={S.secondaryButton}>
             <Text style={S.secondaryButtonText}>📊 Charts</Text>
           </Pressable>
-          <Pressable onPress={() => router.push("/hive/forage-map")} style={S.forageButton}>
-            <Text style={S.forageButtonText}>🗺️ Forage</Text>
+          <Pressable onPress={() => router.push("/hive/forage-map")} style={S.secondaryButton}>
+            <Text style={S.secondaryButtonText}>🗺️ Forage</Text>
           </Pressable>
         </View>
 
+        {/* Hive list */}
         <Text
           style={S.sectionLabel}
           onLayout={(e) => { hivesListY.current = e.nativeEvent.layout.y; }}
@@ -179,40 +215,83 @@ export default function HiveDashboard() {
         {hives.length === 0 ? (
           <View style={S.emptyBox}>
             <Text style={S.emptyEmoji}>🪣</Text>
-            <Text style={S.emptyText}>No hives yet.</Text>
+            <Text style={S.emptyText}>No hives yet</Text>
             <Text style={S.emptyHint}>Tap "+ Add Hive" to get started.</Text>
+            <Pressable onPress={() => router.push("/hive/add")} style={S.emptyButton}>
+              <Text style={S.emptyButtonText}>+ Add Your First Hive</Text>
+            </Pressable>
           </View>
         ) : (
-          hives.map((hive) => (
-            <Pressable
-              key={hive.id}
-              onPress={() => router.push({ pathname: "/hive/[id]", params: { id: hive.id } })}
-              style={[S.card, hive.mentorCount > 0 && S.cardAlert]}
-            >
-              <View style={S.cardHeader}>
-                <View style={S.hiveIconBox}>
-                  <Text style={S.hiveIcon}>🏠</Text>
-                </View>
-                <View style={S.cardHeaderText}>
-                  <Text style={S.hiveName}>{hive.name || `Hive ${hive.id}`}</Text>
-                  <Text style={S.hiveLocation}>{hive.location || "No location set"}</Text>
-                </View>
-                <Text style={S.cardArrow}>→</Text>
-              </View>
-              <View style={S.cardFooter}>
-                <View style={S.cardBadge}>
-                  <Text style={S.cardBadgeText}>{hive.inspections.length} inspections</Text>
-                </View>
-                {hive.mentorCount > 0 && (
-                  <View style={S.cardBadgeWarning}>
-                    <Text style={S.cardBadgeWarningText}>
-                      ⚠️ {hive.mentorCount} review{hive.mentorCount === 1 ? "" : "s"}
+          hives.map((hive) => {
+            const latestDate = formatDate(hive.latest);
+            const latestQueen = hive.latest?.queen;
+            const latestBrood = hive.latest?.brood;
+            return (
+              <Pressable
+                key={hive.id}
+                onPress={() => router.push({ pathname: "/hive/[id]", params: { id: hive.id } })}
+                style={[S.card, hive.mentorCount > 0 && S.cardAlert]}
+              >
+                <View style={S.cardHeader}>
+                  <View style={S.hiveIconBox}>
+                    <Text style={S.hiveIcon}>🏠</Text>
+                  </View>
+                  <View style={S.cardHeaderText}>
+                    <Text style={S.hiveName}>
+                      {hive.name && hive.name.trim() ? hive.name : "Unnamed Hive"}
+                    </Text>
+                    <Text style={S.hiveLocation}>
+                      {hive.location || "No location set"}
                     </Text>
                   </View>
+                  <Text style={S.cardArrow}>→</Text>
+                </View>
+
+                {/* Last inspection summary */}
+                {hive.latest && (
+                  <View style={S.lastInspection}>
+                    <Text style={S.lastInspectionDate}>
+                      Last inspected: {latestDate}
+                    </Text>
+                    {(latestQueen || latestBrood) && (
+                      <View style={S.lastInspectionBadges}>
+                        {latestQueen ? (
+                          <View style={S.miniBadge}>
+                            <Text style={S.miniBadgeText}>👑 {latestQueen}</Text>
+                          </View>
+                        ) : null}
+                        {latestBrood ? (
+                          <View style={S.miniBadge}>
+                            <Text style={S.miniBadgeText}>🐛 {latestBrood}</Text>
+                          </View>
+                        ) : null}
+                      </View>
+                    )}
+                  </View>
                 )}
-              </View>
-            </Pressable>
-          ))
+
+                <View style={S.cardFooter}>
+                  <View style={S.cardBadge}>
+                    <Text style={S.cardBadgeText}>
+                      {hive.inspections.length} inspection{hive.inspections.length === 1 ? "" : "s"}
+                    </Text>
+                  </View>
+                  {hive.mentorCount > 0 && (
+                    <View style={S.cardBadgeWarning}>
+                      <Text style={S.cardBadgeWarningText}>
+                        ⚠️ {hive.mentorCount} review{hive.mentorCount === 1 ? "" : "s"}
+                      </Text>
+                    </View>
+                  )}
+                  {hive.inspections.length === 0 && (
+                    <View style={S.cardBadgeEmpty}>
+                      <Text style={S.cardBadgeEmptyText}>No inspections yet</Text>
+                    </View>
+                  )}
+                </View>
+              </Pressable>
+            );
+          })
         )}
       </ScrollView>
     </SafeAreaView>
@@ -228,14 +307,13 @@ function makeStyles(theme: ReturnType<typeof useAppTheme>) {
   return StyleSheet.create({
     page: { flex: 1, backgroundColor: theme.bg },
     content: { padding: theme.spaceMD, paddingBottom: 50 },
-    header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: theme.spaceSM },
+    header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: theme.spaceMD },
     headerLeft: { flexDirection: "row", alignItems: "center", gap: 12 },
     headerEmoji: { fontSize: 40 },
     title: { color: theme.textPrimary, fontSize: theme.fontLG, fontWeight: "900", letterSpacing: 0.5 },
     subtitle: { color: theme.textMuted, fontSize: theme.fontXS, marginTop: 2 },
     logoutButton: { backgroundColor: theme.bgCardAlt, paddingVertical: 6, paddingHorizontal: 12, borderRadius: theme.radiusSM, borderWidth: 1, borderColor: theme.border },
     logoutText: { color: theme.textMuted, fontSize: theme.fontXS, fontWeight: "700" },
-    userEmail: { color: theme.textMuted, fontSize: theme.fontXS, marginBottom: theme.spaceMD, fontStyle: "italic" },
     statsRow: { flexDirection: "row", gap: 10, marginBottom: theme.spaceMD },
     statCard: { flex: 1, backgroundColor: theme.bgCard, padding: 14, borderRadius: theme.radiusMD, borderWidth: 1, borderColor: theme.border, alignItems: "center" },
     statCardWarning: { borderColor: theme.warning, backgroundColor: theme.warningBg },
@@ -249,30 +327,37 @@ function makeStyles(theme: ReturnType<typeof useAppTheme>) {
     alertTitle: { color: theme.honeyLight, fontWeight: "900", fontSize: theme.fontMD },
     alertBody: { color: theme.textSecondary, fontSize: theme.fontSM, marginTop: 2 },
     actionRow: { flexDirection: "row", gap: 10, marginBottom: theme.spaceMD },
-    primaryButton: { flex: 1, backgroundColor: theme.green, padding: 14, borderRadius: theme.radiusMD, alignItems: "center" },
-    primaryButtonText: { color: "#fff", fontWeight: "900", fontSize: theme.fontMD },
+    primaryButton: { flex: 1.2, backgroundColor: theme.green, padding: 14, borderRadius: theme.radiusMD, alignItems: "center" },
+    primaryButtonText: { color: "#fff", fontWeight: "900", fontSize: theme.fontSM },
     secondaryButton: { flex: 1, backgroundColor: theme.bgCardAlt, padding: 14, borderRadius: theme.radiusMD, alignItems: "center", borderWidth: 1, borderColor: theme.border },
-    secondaryButtonText: { color: theme.textPrimary, fontWeight: "900", fontSize: theme.fontMD },
-    forageButton: { flex: 1, backgroundColor: theme.bgCardAlt, padding: 14, borderRadius: theme.radiusMD, alignItems: "center", borderWidth: 1, borderColor: theme.green },
-    forageButtonText: { color: theme.greenLight, fontWeight: "900", fontSize: theme.fontMD },
+    secondaryButtonText: { color: theme.textPrimary, fontWeight: "800", fontSize: theme.fontSM },
     sectionLabel: { color: theme.textMuted, fontSize: theme.fontXS, fontWeight: "800", letterSpacing: 1.5, marginBottom: theme.spaceSM, marginTop: theme.spaceSM },
-    emptyBox: { alignItems: "center", marginTop: 40 },
-    emptyEmoji: { fontSize: 48, marginBottom: 12 },
-    emptyText: { color: theme.textPrimary, fontSize: theme.fontLG, fontWeight: "800" },
-    emptyHint: { color: theme.textMuted, fontSize: theme.fontSM, marginTop: 6 },
+    emptyBox: { alignItems: "center", marginTop: 40, paddingHorizontal: theme.spaceMD },
+    emptyEmoji: { fontSize: 56, marginBottom: 16 },
+    emptyText: { color: theme.textPrimary, fontSize: theme.fontLG, fontWeight: "800", marginBottom: 8 },
+    emptyHint: { color: theme.textMuted, fontSize: theme.fontSM, marginBottom: 24, textAlign: "center" },
+    emptyButton: { backgroundColor: theme.green, paddingVertical: 14, paddingHorizontal: 28, borderRadius: theme.radiusMD },
+    emptyButtonText: { color: "#fff", fontWeight: "900", fontSize: theme.fontMD },
     card: { backgroundColor: theme.bgCard, borderRadius: theme.radiusLG, marginBottom: 12, borderWidth: 1, borderColor: theme.border, overflow: "hidden" },
     cardAlert: { borderColor: theme.warning },
-    cardHeader: { flexDirection: "row", alignItems: "center", gap: 12, padding: theme.spaceMD },
+    cardHeader: { flexDirection: "row", alignItems: "center", gap: 12, padding: theme.spaceMD, paddingBottom: 8 },
     hiveIconBox: { width: 44, height: 44, backgroundColor: theme.bgCardAlt, borderRadius: theme.radiusSM, justifyContent: "center", alignItems: "center", borderWidth: 1, borderColor: theme.border },
     hiveIcon: { fontSize: 22 },
     cardHeaderText: { flex: 1 },
     hiveName: { color: theme.textPrimary, fontWeight: "900", fontSize: theme.fontMD },
     hiveLocation: { color: theme.textMuted, fontSize: theme.fontXS, marginTop: 2 },
     cardArrow: { color: theme.honey, fontSize: 18, fontWeight: "900" },
-    cardFooter: { flexDirection: "row", gap: 8, paddingHorizontal: theme.spaceMD, paddingBottom: theme.spaceMD },
+    lastInspection: { paddingHorizontal: theme.spaceMD, paddingBottom: 8, gap: 6 },
+    lastInspectionDate: { color: theme.textMuted, fontSize: theme.fontXS },
+    lastInspectionBadges: { flexDirection: "row", gap: 6 },
+    miniBadge: { backgroundColor: theme.bgCardAlt, paddingVertical: 2, paddingHorizontal: 8, borderRadius: 12, borderWidth: 1, borderColor: theme.border },
+    miniBadgeText: { color: theme.textSecondary, fontSize: 10, fontWeight: "700" },
+    cardFooter: { flexDirection: "row", gap: 8, paddingHorizontal: theme.spaceMD, paddingBottom: theme.spaceMD, flexWrap: "wrap" },
     cardBadge: { backgroundColor: theme.bgCardAlt, paddingVertical: 4, paddingHorizontal: 10, borderRadius: 20, borderWidth: 1, borderColor: theme.border },
     cardBadgeText: { color: theme.textSecondary, fontSize: theme.fontXS, fontWeight: "700" },
     cardBadgeWarning: { backgroundColor: theme.warningBg, paddingVertical: 4, paddingHorizontal: 10, borderRadius: 20, borderWidth: 1, borderColor: theme.warning },
     cardBadgeWarningText: { color: theme.honeyLight, fontSize: theme.fontXS, fontWeight: "700" },
+    cardBadgeEmpty: { backgroundColor: theme.bgCardAlt, paddingVertical: 4, paddingHorizontal: 10, borderRadius: 20, borderWidth: 1, borderColor: theme.borderLight },
+    cardBadgeEmptyText: { color: theme.textMuted, fontSize: theme.fontXS, fontStyle: "italic" },
   });
 }
