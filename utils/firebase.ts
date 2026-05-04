@@ -3,6 +3,9 @@
  *
  * Firebase initialization.
  * Exports app, db, and storage for use throughout the app.
+ * 
+ * my note to self: add a plant note here for the github commit and push test
+ * 
  */
 
 import { initializeApp } from "firebase/app";
