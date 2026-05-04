@@ -7,7 +7,7 @@
     "icon": "./assets/images/icon.png",
     "scheme": "beehivepro",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "newArchEnabled": true,  // Enable the new architecture for improved performance and future compatibility
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.webdebspider.beehivepro",
