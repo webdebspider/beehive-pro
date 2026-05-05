@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Beehive Pro+ — Hive Management App</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #fdf8f0;
+      color: #1a1008;
+      line-height: 1.7;
+    }
+
+    /* Hero */
+    .hero {
+      background: linear-gradient(135deg, #1a1008 0%, #3d1f00 100%);
+      padding: 64px 24px;
+      text-align: center;
+    }
+    .hero-emoji { font-size: 72px; margin-bottom: 16px; }
+    .hero h1 { color: #f59e0b; font-size: 42px; font-weight: 900; margin-bottom: 8px; }
+    .hero p { color: #e8d5b0; font-size: 18px; max-width: 500px; margin: 0 auto 32px; }
+    .badge {
+      display: inline-block;
+      background: #f59e0b;
+      color: #1a1008;
+      font-weight: 900;
+      font-size: 13px;
+      padding: 6px 16px;
+      border-radius: 20px;
+      margin: 4px;
+    }
+    .badge-outline {
+      display: inline-block;
+      border: 2px solid #f59e0b;
+      color: #f59e0b;
+      font-weight: 700;
+      font-size: 13px;
+      padding: 6px 16px;
+      border-radius: 20px;
+      margin: 4px;
+    }
+
+    /* Container */
+    .container { max-width: 720px; margin: 0 auto; padding: 0 24px; }
+
+    /* Features */
+    .section { padding: 56px 24px; }
+    .section-title { font-size: 24px; font-weight: 900; color: #1a1008; margin-bottom: 8px; text-align: center; }
+    .section-sub { color: #a07840; font-size: 15px; text-align: center; margin-bottom: 36px; }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+      max-width: 720px;
+      margin: 0 auto;
+    }
+    .feature-card {
+      background: white;
+      border: 1px solid #e8d5b0;
+      border-radius: 16px;
+      padding: 24px;
+      text-align: center;
+    }
+    .feature-icon { font-size: 36px; margin-bottom: 12px; }
+    .feature-title { font-weight: 800; color: #1a1008; font-size: 15px; margin-bottom: 6px; }
+    .feature-desc { color: #5c3d1e; font-size: 13px; line-height: 1.5; }
+
+    /* Support */
+    .support-section {
+      background: white;
+      border-top: 1px solid #e8d5b0;
+      border-bottom: 1px solid #e8d5b0;
+      padding: 56px 24px;
+    }
+    .support-card {
+      background: #fef3dc;
+      border: 1px solid #f59e0b;
+      border-radius: 16px;
+      padding: 32px;
+      max-width: 500px;
+      margin: 0 auto;
+      text-align: center;
+    }
+    .support-card h3 { font-size: 20px; font-weight: 900; color: #1a1008; margin-bottom: 12px; }
+    .support-card p { color: #5c3d1e; font-size: 15px; margin-bottom: 20px; }
+    .email-button {
+      display: inline-block;
+      background: #f59e0b;
+      color: #1a1008;
+      font-weight: 900;
+      font-size: 15px;
+      padding: 14px 28px;
+      border-radius: 12px;
+      text-decoration: none;
+    }
+    .email-button:hover { background: #e08c00; }
+
+    /* FAQ */
+    .faq-item { margin-bottom: 24px; max-width: 720px; margin-left: auto; margin-right: auto; }
+    .faq-q { font-weight: 800; color: #1a1008; font-size: 15px; margin-bottom: 6px; }
+    .faq-a { color: #5c3d1e; font-size: 15px; }
+
+    /* Footer */
+    .footer {
+      background: #1a1008;
+      color: #a07840;
+      text-align: center;
+      padding: 32px 24px;
+      font-size: 13px;
+    }
+    .footer a { color: #f59e0b; text-decoration: none; }
+    .footer a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+  <!-- Hero -->
+  <div class="hero">
+    <div class="hero-emoji">🐝</div>
+    <h1>Beehive Pro+</h1>
+    <p>The smart beehive management app for beginners and experienced keepers alike.</p>
+    <div>
+      <span class="badge">🤖 AI-Powered</span>
+      <span class="badge">🎙️ Voice Logging</span>
+      <span class="badge">☁️ Cloud Sync</span>
+      <span class="badge-outline">Android</span>
+      <span class="badge-outline">iOS Coming Soon</span>
+    </div>
+  </div>
+
+  <!-- Features -->
+  <div class="section">
+    <div class="section-title">Everything you need at the hive</div>
+    <div class="section-sub">Designed for the field — fast, intuitive, and offline-ready</div>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">⚡</div>
+        <div class="feature-title">Quick Tap Inspections</div>
+        <div class="feature-desc">Log hive health in seconds with one-tap status updates</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🎙️</div>
+        <div class="feature-title">Voice Logging</div>
+        <div class="feature-desc">Hands-free inspection notes — just talk while you work</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🔬</div>
+        <div class="feature-title">AI Comb Analysis</div>
+        <div class="feature-desc">Snap a photo and get AI-powered insights on your comb</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🌿</div>
+        <div class="feature-title">Forage Mapping</div>
+        <div class="feature-desc">Track what's blooming near your hives with GPS logging</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📊</div>
+        <div class="feature-title">Hive Health Charts</div>
+        <div class="feature-desc">Visualize trends across all your hives over time</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🔔</div>
+        <div class="feature-title">Smart Reminders</div>
+        <div class="feature-desc">Never miss an inspection with customizable per-hive alerts</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🧰</div>
+        <div class="feature-title">Supplies Tracker</div>
+        <div class="feature-desc">Manage equipment inventory and log treatments</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">☁️</div>
+        <div class="feature-title">Offline + Cloud Sync</div>
+        <div class="feature-desc">Works without signal — syncs automatically when back online</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Support -->
+  <div class="support-section">
+    <div class="section-title">Need help?</div>
+    <div class="section-sub">We're here for you — beekeeping questions welcome too! 🍯</div>
+    <div class="support-card">
+      <h3>📬 Contact Support</h3>
+      <p>Have a question, found a bug, or want to request a feature? Send us an email and we'll get back to you as soon as possible.</p>
+      <a href="mailto:webdebspiderdesigns@gmail.com" class="email-button">✉️ webdebspiderdesigns@gmail.com</a>
+    </div>
+  </div>
+
+  <!-- FAQ -->
+  <div class="section">
+    <div class="section-title">Frequently Asked Questions</div>
+    <div class="section-sub">Quick answers to common questions</div>
+
+    <div class="faq-item">
+      <div class="faq-q">🐝 Is Beehive Pro+ free?</div>
+      <div class="faq-a">Yes! Beehive Pro+ is free to download and use. Core features are available at no cost.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">📱 What devices are supported?</div>
+      <div class="faq-a">Android is available now. iOS is coming soon!</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">☁️ Is my data safe?</div>
+      <div class="faq-a">Yes. Your data is stored securely in Google Firebase with industry-standard encryption. We never sell your data. See our <a href="privacy-policy.html">Privacy Policy</a> for full details.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">📡 Does it work offline?</div>
+      <div class="faq-a">Yes! You can log inspections and access your data without an internet connection. Everything syncs automatically when you're back online.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">🗑️ How do I delete my account?</div>
+      <div class="faq-a">Email us at <a href="mailto:webdebspiderdesigns@gmail.com">webdebspiderdesigns@gmail.com</a> and we'll delete your account and all data within 30 days.</div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <p>🐝 <strong style="color:#f59e0b;">Beehive Pro+</strong> by WebDebSpider's Designs</p>
+    <p style="margin-top:8px;">
+      <a href="privacy-policy.html">Privacy Policy</a> &nbsp;·&nbsp;
+      <a href="mailto:webdebspiderdesigns@gmail.com">Support</a>
+    </p>
+    <p style="margin-top:12px;">&copy; 2026 WebDebSpider's Designs. All rights reserved.</p>
+  </div>
+
+</body>
+</html>
