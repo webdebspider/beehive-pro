@@ -176,6 +176,9 @@ export default function HiveDashboard() {
           <Pressable onPress={() => router.push("/hive/supplies")} style={S.secondaryButton}>
             <Text style={S.secondaryButtonText}>🧰 Supplies</Text>
           </Pressable>
+          <Pressable onPress={() => router.push("/registration")} style={S.secondaryButton}>
+            <Text style={S.secondaryButtonText}>🏛️ Register</Text>
+          </Pressable>
         </View>
 
         {/* Hive list */}
