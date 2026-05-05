@@ -12,6 +12,8 @@
 - Reminders saving to Firestore with per-hive overrides
 - Supplies inventory with low stock alerts working
 - All screens clean and functional, ready for next round of polish and testing.
+- Next up: add photo upload support to inspections, then start testing on Android and iOS devices to catch any platform-specific issues.
+- updated FAQ with new features and screenshots, and started drafting announcement post for launch. Excited to share Beehive Pro+ with the world soon!
  * 
  */
 
