@@ -10,7 +10,7 @@
  *  - Font Size: Small / Medium / Large / Extra Large
  */
 
-import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Linking, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 import NavBar from "../components/NavBar";
 import { useSettingsContext } from "../context/SettingsContext";
 import { useAppTheme } from "../hooks/useAppTheme";
@@ -171,6 +171,25 @@ export default function Settings() {
           ))}
         </View>
 
+        {/* ── Links ── */}
+        <Text style={S.sectionLabel}>LINKS</Text>
+        <View style={S.infoCard}>
+          <Pressable style={S.linkRow} onPress={() => Linking.openURL("https://webdebspider.github.io/beehive-pro/")}>
+            <Text style={S.linkLabel}>🌐 Website</Text>
+            <Text style={S.linkArrow}>→</Text>
+          </Pressable>
+          <View style={S.infoDivider} />
+          <Pressable style={S.linkRow} onPress={() => Linking.openURL("https://webdebspider.github.io/beehive-pro/privacy-policy.html")}>
+            <Text style={S.linkLabel}>🔒 Privacy Policy</Text>
+            <Text style={S.linkArrow}>→</Text>
+          </Pressable>
+          <View style={S.infoDivider} />
+          <Pressable style={S.linkRow} onPress={() => Linking.openURL("mailto:webdebspiderdesigns@gmail.com")}>
+            <Text style={S.linkLabel}>✉️ Contact Support</Text>
+            <Text style={S.linkArrow}>→</Text>
+          </Pressable>
+        </View>
+
       </ScrollView>
     </SafeAreaView>
   );
@@ -209,5 +228,8 @@ function makeStyles(theme: ReturnType<typeof useAppTheme>) {
     infoValue: { color: theme.textPrimary, fontWeight: "700", fontSize: theme.fontSM, flex: 2, textAlign: "right" },
     infoDivider: { height: 1, backgroundColor: theme.border },
     featureItem: { color: theme.textSecondary, fontSize: theme.fontSM, padding: theme.spaceMD, borderBottomWidth: 1, borderBottomColor: theme.border },
+    linkRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: theme.spaceMD },
+    linkLabel: { color: theme.honey, fontWeight: "800", fontSize: theme.fontSM },
+    linkArrow: { color: theme.textMuted, fontSize: theme.fontMD },
   });
 }
