@@ -40,6 +40,19 @@ import {
   setupNotificationChannel,
 } from "../../utils/reminders";
 
+// Extended interval options for per-hive overrides — includes short emergency intervals
+const HIVE_INTERVAL_OPTIONS: { value: number; label: string; tag?: string }[] = [
+  { value: 1,  label: "day",  tag: "🚨 Today" },
+  { value: 2,  label: "days", tag: "🚨 Urgent" },
+  { value: 3,  label: "days", tag: "⚠️ Soon" },
+  { value: 5,  label: "days", tag: "⚠️ Watch" },
+  { value: 7,  label: "days" },
+  { value: 10, label: "days" },
+  { value: 14, label: "days" },
+  { value: 21, label: "days" },
+  { value: 30, label: "days" },
+];
+
 type HiveSetting = {
   id: string;
   name: string;
@@ -57,7 +70,7 @@ export default function RemindersScreen() {
   const [globalEnabled, setGlobalEnabled] = useState(false);
   const [globalInterval, setGlobalInterval] = useState(DEFAULT_REMINDER_INTERVAL);
   const [hiveSettings, setHiveSettings] = useState<HiveSetting[]>([]);
-  const [showIntervalPicker, setShowIntervalPicker] = useState<string | null>(null); // hiveId or "global"
+  const [showIntervalPicker, setShowIntervalPicker] = useState<string | null>(null);
 
   useEffect(() => {
     loadSettings();
@@ -66,7 +79,6 @@ export default function RemindersScreen() {
   const loadSettings = async () => {
     if (!user) return;
     try {
-      // Load global settings
       const globalDoc = await getDocs(
         query(collection(db, "userSettings"), where("userId", "==", user.uid))
       );
@@ -76,7 +88,6 @@ export default function RemindersScreen() {
         setGlobalInterval(data.reminderInterval ?? DEFAULT_REMINDER_INTERVAL);
       }
 
-      // Load hives
       const hiveSnap = await getDocs(
         query(collection(db, "hives"), where("userId", "==", user.uid))
       );
@@ -115,14 +126,12 @@ export default function RemindersScreen() {
         }
       }
 
-      // Save global settings
       await setDoc(doc(db, "userSettings", user.uid), {
         userId: user.uid,
         remindersEnabled: globalEnabled,
         reminderInterval: globalInterval,
       }, { merge: true });
 
-      // Save per-hive settings and schedule/cancel notifications
       for (const hive of hiveSettings) {
         await setDoc(doc(db, "hives", hive.id), {
           reminderEnabled: hive.enabled,
@@ -186,7 +195,7 @@ export default function RemindersScreen() {
           </View>
         </View>
 
-        {/* Global interval */}
+        {/* Global interval — standard intervals only */}
         {globalEnabled && (
           <View style={S.card}>
             <Text style={S.cardTitle}>Default Interval</Text>
@@ -202,7 +211,7 @@ export default function RemindersScreen() {
                     {opt.value}
                   </Text>
                   <Text style={[S.intervalLabel, globalInterval === opt.value && S.intervalLabelSelected]}>
-                    days
+                    day{opt.value === 1 ? "" : "s"}
                   </Text>
                 </Pressable>
               ))}
@@ -214,67 +223,104 @@ export default function RemindersScreen() {
         {globalEnabled && hiveSettings.length > 0 && (
           <>
             <Text style={S.sectionLabel}>PER-HIVE SETTINGS</Text>
-            <Text style={S.sectionHint}>Override the default interval for individual hives</Text>
+            <Text style={S.sectionHint}>Override the default interval for individual hives — use shorter intervals for hives with pest pressure or concerns</Text>
 
-            {hiveSettings.map((hive) => (
-              <View key={hive.id} style={S.hiveCard}>
-                <View style={S.hiveCardHeader}>
-                  <Text style={S.hiveName}>🏠 {hive.name}</Text>
-                  <Switch
-                    value={hive.enabled}
-                    onValueChange={(v) => updateHive(hive.id, { enabled: v })}
-                    trackColor={{ false: theme.border, true: theme.honey }}
-                    thumbColor={hive.enabled ? theme.honeyLight : theme.textMuted}
-                  />
-                </View>
+            {hiveSettings.map((hive) => {
+              const selectedOpt = HIVE_INTERVAL_OPTIONS.find((o) => o.value === hive.interval);
+              return (
+                <View key={hive.id} style={S.hiveCard}>
+                  <View style={S.hiveCardHeader}>
+                    <Text style={S.hiveName}>🏠 {hive.name}</Text>
+                    <Switch
+                      value={hive.enabled}
+                      onValueChange={(v) => updateHive(hive.id, { enabled: v })}
+                      trackColor={{ false: theme.border, true: theme.honey }}
+                      thumbColor={hive.enabled ? theme.honeyLight : theme.textMuted}
+                    />
+                  </View>
 
-                {hive.enabled && (
-                  <View style={S.hiveIntervalRow}>
-                    <Text style={S.hiveIntervalLabel}>
-                      Interval: {hive.interval ? `${hive.interval} days` : `Global default (${globalInterval} days)`}
-                    </Text>
-                    <Pressable
-                      onPress={() => setShowIntervalPicker(showIntervalPicker === hive.id ? null : hive.id)}
-                      style={S.overrideButton}
-                    >
-                      <Text style={S.overrideButtonText}>
-                        {hive.interval ? "Change" : "Override"}
+                  {hive.enabled && (
+                    <View style={S.hiveIntervalRow}>
+                      <Text style={S.hiveIntervalLabel}>
+                        Interval:{" "}
+                        {hive.interval
+                          ? `${hive.interval} days${selectedOpt?.tag ? ` ${selectedOpt.tag}` : ""}`
+                          : `Global default (${globalInterval} days)`}
                       </Text>
-                    </Pressable>
-                    {hive.interval && (
                       <Pressable
-                        onPress={() => updateHive(hive.id, { interval: null })}
-                        style={S.resetButton}
+                        onPress={() => setShowIntervalPicker(showIntervalPicker === hive.id ? null : hive.id)}
+                        style={S.overrideButton}
                       >
-                        <Text style={S.resetButtonText}>Reset</Text>
+                        <Text style={S.overrideButtonText}>
+                          {hive.interval ? "Change" : "Override"}
+                        </Text>
                       </Pressable>
-                    )}
-                  </View>
-                )}
+                      {hive.interval && (
+                        <Pressable
+                          onPress={() => updateHive(hive.id, { interval: null })}
+                          style={S.resetButton}
+                        >
+                          <Text style={S.resetButtonText}>Reset</Text>
+                        </Pressable>
+                      )}
+                    </View>
+                  )}
 
-                {showIntervalPicker === hive.id && hive.enabled && (
-                  <View style={S.intervalGrid}>
-                    {INTERVAL_OPTIONS.map((opt) => (
-                      <Pressable
-                        key={opt.value}
-                        onPress={() => {
-                          updateHive(hive.id, { interval: opt.value });
-                          setShowIntervalPicker(null);
-                        }}
-                        style={[S.intervalOption, hive.interval === opt.value && S.intervalOptionSelected]}
-                      >
-                        <Text style={[S.intervalDays, hive.interval === opt.value && S.intervalDaysSelected]}>
-                          {opt.value}
-                        </Text>
-                        <Text style={[S.intervalLabel, hive.interval === opt.value && S.intervalLabelSelected]}>
-                          days
-                        </Text>
-                      </Pressable>
-                    ))}
-                  </View>
-                )}
-              </View>
-            ))}
+                  {showIntervalPicker === hive.id && hive.enabled && (
+                    <View style={{ marginTop: 12 }}>
+                      {/* Emergency section */}
+                      <Text style={S.intervalGroupLabel}>🚨 EMERGENCY / PEST WATCH</Text>
+                      <View style={S.intervalGrid}>
+                        {HIVE_INTERVAL_OPTIONS.filter((o) => o.value <= 5).map((opt) => (
+                          <Pressable
+                            key={opt.value}
+                            onPress={() => {
+                              updateHive(hive.id, { interval: opt.value });
+                              setShowIntervalPicker(null);
+                            }}
+                            style={[S.intervalOption, S.intervalOptionUrgent, hive.interval === opt.value && S.intervalOptionSelected]}
+                          >
+                            <Text style={[S.intervalDays, hive.interval === opt.value && S.intervalDaysSelected]}>
+                              {opt.value}
+                            </Text>
+                            <Text style={[S.intervalLabel, hive.interval === opt.value && S.intervalLabelSelected]}>
+                              {opt.label}
+                            </Text>
+                            {opt.tag && (
+                              <Text style={[S.intervalTag, hive.interval === opt.value && { color: theme.bg }]}>
+                                {opt.tag}
+                              </Text>
+                            )}
+                          </Pressable>
+                        ))}
+                      </View>
+
+                      {/* Regular section */}
+                      <Text style={[S.intervalGroupLabel, { marginTop: 10 }]}>📅 REGULAR INTERVALS</Text>
+                      <View style={S.intervalGrid}>
+                        {HIVE_INTERVAL_OPTIONS.filter((o) => o.value > 5).map((opt) => (
+                          <Pressable
+                            key={opt.value}
+                            onPress={() => {
+                              updateHive(hive.id, { interval: opt.value });
+                              setShowIntervalPicker(null);
+                            }}
+                            style={[S.intervalOption, hive.interval === opt.value && S.intervalOptionSelected]}
+                          >
+                            <Text style={[S.intervalDays, hive.interval === opt.value && S.intervalDaysSelected]}>
+                              {opt.value}
+                            </Text>
+                            <Text style={[S.intervalLabel, hive.interval === opt.value && S.intervalLabelSelected]}>
+                              {opt.label}
+                            </Text>
+                          </Pressable>
+                        ))}
+                      </View>
+                    </View>
+                  )}
+                </View>
+              );
+            })}
           </>
         )}
 
@@ -308,13 +354,16 @@ function makeStyles(theme: ReturnType<typeof useAppTheme>) {
     cardRow: { flexDirection: "row", alignItems: "center", gap: 12 },
     cardTitle: { color: theme.textPrimary, fontWeight: "800", fontSize: theme.fontMD, marginBottom: 4 },
     cardSubtitle: { color: theme.textMuted, fontSize: theme.fontXS },
-    intervalGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: theme.spaceMD },
-    intervalOption: { backgroundColor: theme.bgCardAlt, borderRadius: theme.radiusMD, borderWidth: 2, borderColor: theme.border, paddingVertical: 12, paddingHorizontal: 16, alignItems: "center", minWidth: 70 },
+    intervalGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: theme.spaceSM },
+    intervalGroupLabel: { color: theme.textMuted, fontSize: 10, fontWeight: "800", letterSpacing: 1.2, marginBottom: 6 },
+    intervalOption: { backgroundColor: theme.bgCardAlt, borderRadius: theme.radiusMD, borderWidth: 2, borderColor: theme.border, paddingVertical: 10, paddingHorizontal: 14, alignItems: "center", minWidth: 64 },
+    intervalOptionUrgent: { borderColor: theme.warning },
     intervalOptionSelected: { borderColor: theme.honey, backgroundColor: theme.honey },
-    intervalDays: { color: theme.textPrimary, fontSize: 22, fontWeight: "900" },
+    intervalDays: { color: theme.textPrimary, fontSize: 20, fontWeight: "900" },
     intervalDaysSelected: { color: theme.bg },
     intervalLabel: { color: theme.textMuted, fontSize: theme.fontXS },
     intervalLabelSelected: { color: theme.bg },
+    intervalTag: { color: theme.warning, fontSize: 9, fontWeight: "800", marginTop: 2, textAlign: "center" },
     hiveCard: { backgroundColor: theme.bgCard, borderRadius: theme.radiusLG, padding: theme.spaceMD, borderWidth: 1, borderColor: theme.border, marginBottom: 10 },
     hiveCardHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
     hiveName: { color: theme.textPrimary, fontWeight: "800", fontSize: theme.fontMD, flex: 1 },
