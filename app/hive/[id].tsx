@@ -2,19 +2,7 @@
  * app/hive/[id].tsx
  *
  * Hive Detail Screen — shows all inspections for a single hive.
- *
- * Added: due/overdue status badge, reminders button, supplies/treatment button.
- * 
- * new added features:
- * feat: reminders + supplies confirmed working on device
-
-- Dashboard showing Beehive Pro+ with due status badges
-- Reminders saving to Firestore with per-hive overrides
-- Supplies inventory with low stock alerts working
-- All screens clean and functional, ready for next round of polish and testing.
-- Next up: add photo upload support to inspections, then start testing on Android and iOS devices to catch any platform-specific issues.
-- updated FAQ with new features and screenshots, and started drafting announcement post for launch. Excited to share Beehive Pro+ with the world soon!
- * 
+ * Shows due/overdue status badge, reminders button, supplies/treatment button.
  */
 
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -142,6 +130,13 @@ export default function HiveDetailScreen() {
             </Pressable>
             <Pressable style={S.secondaryButton} onPress={() => router.push({ pathname: "/hive/supplies", params: { hiveId, hiveName } })}>
               <Text style={S.secondaryButtonText}>🧰 Supplies</Text>
+            </Pressable>
+          </View>
+
+          {/* Row 3 */}
+          <View style={S.buttonRow}>
+            <Pressable style={[S.secondaryButton, { borderColor: theme.danger }]} onPress={() => router.push({ pathname: "/hive/health-log", params: { id: hiveId, hiveName } })}>
+              <Text style={[S.secondaryButtonText, { color: theme.danger }]}>🏥 Health Log</Text>
             </Pressable>
           </View>
         </View>

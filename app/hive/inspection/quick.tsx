@@ -63,6 +63,21 @@ const TEMPERAMENT_OPTIONS = [
   { value: "defensive", label: "Defensive", hint: "Bees are stinging, following, or fanning aggressively." },
 ];
 
+const HEALTH_CONCERN_OPTIONS = [
+  { value: "afb",           label: "AFB",           emoji: "🦠", color: "#ef4444" },
+  { value: "efb",           label: "EFB",           emoji: "🦠", color: "#f97316" },
+  { value: "chalkbrood",    label: "Chalkbrood",    emoji: "🍄", color: "#f59e0b" },
+  { value: "sacbrood",      label: "Sacbrood",      emoji: "🦠", color: "#f59e0b" },
+  { value: "nosema",        label: "Nosema",        emoji: "🦠", color: "#f97316" },
+  { value: "dwv",           label: "Deformed Wings",emoji: "🦠", color: "#f97316" },
+  { value: "wax_moths",     label: "Wax Moths",     emoji: "🦋", color: "#f59e0b" },
+  { value: "tracheal_mites",label: "Tracheal Mites",emoji: "🔬", color: "#f59e0b" },
+  { value: "bears",         label: "Bear Damage",   emoji: "🐻", color: "#ef4444" },
+  { value: "pesticides",    label: "Pesticides",    emoji: "☠️", color: "#ef4444" },
+  { value: "ants",          label: "Ants",          emoji: "🐜", color: "#22c55e" },
+  { value: "wasps",         label: "Wasps/Hornets", emoji: "🐝", color: "#f59e0b" },
+];
+
 export default function QuickInspectionScreen() {
   const router = useRouter();
   const theme = useAppTheme();
@@ -93,6 +108,7 @@ export default function QuickInspectionScreen() {
   const [hiveBeetles, setHiveBeetles] = useState("");
   const [temperament, setTemperament] = useState("");
   const [saving, setSaving] = useState(false);
+  const [healthConcerns, setHealthConcerns] = useState<Set<string>>(new Set());
   const [voiceFilled, setVoiceFilled] = useState(false);
 
   // Apply voice params via useEffect so they're picked up even when
@@ -110,6 +126,15 @@ export default function QuickInspectionScreen() {
     if (voiceTemperament) setTemperament(String(voiceTemperament));
     setVoiceFilled(true);
   }, [voiceQueen, voiceBrood, voiceMites, voiceBeetles, voiceTemperament]);
+
+  const toggleHealthConcern = (value: string) => {
+    setHealthConcerns((prev) => {
+      const next = new Set(prev);
+      if (next.has(value)) next.delete(value);
+      else next.add(value);
+      return next;
+    });
+  };
 
   const toggleQueen = (value: string) => {
     setQueenSelections((prev) => {
@@ -141,7 +166,8 @@ export default function QuickInspectionScreen() {
       await savePendingInspectionBackup(inspectionData);
       await addDoc(collection(db, "hives", hiveId, "inspections"), {
         hiveId, queen: queenValue, brood, mites, hiveBeetles, temperament,
-        notes: "Quick inspection entry.",
+        healthConcerns: Array.from(healthConcerns),
+        notes: healthConcerns.size > 0 ? `Quick inspection entry. Health concerns noted: ${Array.from(healthConcerns).join(", ")}.` : "Quick inspection entry.",
         combFindings: [],
         date: now.toISOString(),
         createdAt: now,
@@ -283,6 +309,28 @@ export default function QuickInspectionScreen() {
           ))}
         </View>
 
+        <View style={S.categoryHeader}>
+          <Text style={S.label}>🏥 Health Concerns</Text>
+          {isBeginner && <Text style={S.categoryHint}>Tap any issues you spot</Text>}
+        </View>
+        {isBeginner && healthConcerns.size === 0 && (
+          <View style={S.beginnerTip}>
+            <Text style={S.beginnerTipText}>💡 Tap any diseases, pests, or threats you observe. Use the Health Log screen for full details and treatment guidance.</Text>
+          </View>
+        )}
+        <View style={S.healthGrid}>
+          {HEALTH_CONCERN_OPTIONS.map((opt) => {
+            const selected = healthConcerns.has(opt.value);
+            return (
+              <Pressable key={opt.value} onPress={() => toggleHealthConcern(opt.value)} style={[S.healthChip, { borderColor: selected ? opt.color : theme.border }, selected && { backgroundColor: opt.color + "20" }]}>
+                <Text style={S.healthChipEmoji}>{opt.emoji}</Text>
+                <Text style={[S.healthChipText, { color: selected ? opt.color : theme.textSecondary }]}>{opt.label}</Text>
+                {selected && <Text style={[S.healthChipCheck, { color: opt.color }]}>✓</Text>}
+              </Pressable>
+            );
+          })}
+        </View>
+
         <Pressable onPress={handleSave} style={[S.saveButton, saving && S.disabledButton]} disabled={saving}>
           <Text style={S.saveText}>{saving ? "Saving..." : "Save Quick Inspection"}</Text>
         </Pressable>
@@ -315,6 +363,11 @@ function makeStyles(theme: ReturnType<typeof useAppTheme>) {
     optionTextSelected: { color: theme.bg },
     optionHint: { color: theme.bg, fontSize: theme.fontXS, marginTop: 6, lineHeight: 16, opacity: 0.85 },
     checkMark: { color: theme.bg, fontWeight: "900", fontSize: theme.fontMD },
+    healthGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: theme.spaceMD },
+    healthChip: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: theme.bgCard, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 20, borderWidth: 1.5 },
+    healthChipEmoji: { fontSize: 14 },
+    healthChipText: { fontSize: theme.fontXS, fontWeight: "800" },
+    healthChipCheck: { fontSize: 10, fontWeight: "900" },
     saveButton: { backgroundColor: theme.green, padding: 18, borderRadius: theme.radiusMD, alignItems: "center", marginTop: theme.spaceXL },
     disabledButton: { backgroundColor: theme.textMuted },
     saveText: { color: "#fff", fontWeight: "900", fontSize: theme.fontMD },
