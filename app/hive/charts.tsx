@@ -92,7 +92,7 @@ export default function ChartsScreen() {
                     <View key={i.id} style={S.chip}>
                       <View style={S.chipTop}>
                         <Text style={S.chipValue}>M {formatMites(i.mites)}</Text>
-                        <Text style={S.chipValue}>B {formatBeetles(i.hiveBeetles)}</Text>
+                        <Text style={S.chipValue}>SHB {formatBeetles(i.hiveBeetles)}</Text>
                       </View>
                       <Text style={S.chipDate}>{formatShortDate(i)}</Text>
                     </View>
