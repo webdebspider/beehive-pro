@@ -7,7 +7,7 @@
     "icon": "./assets/images/icon.png",
     "scheme": "beehivepro",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,  // Enable the new architecture for improved performance and future compatibility
+    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.webdebspider.beehivepro",
@@ -17,7 +17,8 @@
         "NSMicrophoneUsageDescription": "Beehive Pro+ uses your microphone for hands-free voice inspection logging.",
         "NSPhotoLibraryUsageDescription": "Beehive Pro+ saves annotated comb photos to your photo library.",
         "NSPhotoLibraryAddUsageDescription": "Beehive Pro+ saves annotated comb photos to your photo library.",
-        "NSLocationWhenInUseUsageDescription": "Beehive Pro+ uses your location to pin forage entries on the map."
+        "NSLocationWhenInUseUsageDescription": "Beehive Pro+ uses your location to pin forage entries on the map.",
+        "NSSpeechRecognitionUsageDescription": "Allow $(PRODUCT_NAME) to use speech recognition."
       }
     },
     "android": {
@@ -69,6 +70,12 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "8fd8fbec-091b-40aa-9edd-6263a642b620"
+      }
     }
   }
 }

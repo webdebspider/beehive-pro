@@ -61,6 +61,44 @@ type Treatment = {
 };
 
 const CATEGORIES = ["Equipment", "Feed", "Treatments", "Protective Gear", "Other"];
+
+const EQUIPMENT_BY_CATEGORY: Record<string, string[]> = {
+  Equipment: [
+    "Hive body (deep)", "Hive body (medium)", "Hive body (shallow)",
+    "Frames", "Foundation (wax)", "Foundation (plastic)",
+    "Bottom board", "Inner cover", "Outer cover / telescoping cover",
+    "Entrance reducer", "Queen excluder", "Feeder (entrance)", "Feeder (top)",
+    "Hive tool", "Smoker", "Brush", "Frame grip", "Uncapping knife",
+    "Extractor", "Uncapping tank", "Strainer / filter", "Honey bucket",
+    "Marking tube / cage", "Queen cage", "Nuc box", "Swarm trap",
+    "Mouse guard", "Varroa sticky board", "Alcohol wash jar", "Other",
+  ],
+  Feed: [
+    "Sugar (white)", "Sugar (powdered)", "High fructose corn syrup",
+    "Pollen substitute patty", "Dry pollen substitute", "Fondant",
+    "Candy board", "ProSweet", "Other",
+  ],
+  Treatments: [
+    "Oxalic acid (crystals)", "Oxalic acid (ready-to-use)",
+    "ApiVar strips", "HopGuard strips", "Formic Pro pads",
+    "Apiguard thymol gel", "ApiLife VAR", "Mite Away Quick Strips",
+    "Other",
+  ],
+  "Protective Gear": [
+    "Full suit", "Jacket / half suit", "Veil (round)", "Veil (square)",
+    "Gloves (leather)", "Gloves (nitrile)", "Gloves (rubber)",
+    "Boots / boot covers", "Other",
+  ],
+  Other: ["Other"],
+};
+
+const UNIT_OPTIONS = [
+  "item", "pair", "box", "bag", "frame",
+  "lb", "oz", "kg",
+  "gal", "qt", "pt", "fl oz", "ml", "L",
+  "roll", "sheet", "jar", "bottle", "strip", "pack",
+];
+
 const COMMON_TREATMENTS = [
   "Oxalic Acid (Vaporization)",
   "Oxalic Acid (Dribble)",
@@ -91,7 +129,7 @@ export default function SuppliesScreen() {
   const [showAddItem, setShowAddItem] = useState(false);
   const [newItemName, setNewItemName] = useState("");
   const [newItemQuantity, setNewItemQuantity] = useState("1");
-  const [newItemUnit, setNewItemUnit] = useState("units");
+  const [newItemUnit, setNewItemUnit] = useState("item");
   const [newItemCategory, setNewItemCategory] = useState("Equipment");
   const [newItemThreshold, setNewItemThreshold] = useState("");
 
@@ -105,6 +143,9 @@ export default function SuppliesScreen() {
   const [newTreatmentRemoveDate, setNewTreatmentRemoveDate] = useState("");
   const [newTreatmentNotes, setNewTreatmentNotes] = useState("");
   const [hives, setHives] = useState<{ id: string; name: string }[]>([]);
+
+  // Derived: equipment suggestions based on selected category
+  const equipmentSuggestions = EQUIPMENT_BY_CATEGORY[newItemCategory] || EQUIPMENT_BY_CATEGORY["Other"];
 
   useEffect(() => {
     loadData();
@@ -154,7 +195,7 @@ export default function SuppliesScreen() {
         createdAt: serverTimestamp(),
       });
       setShowAddItem(false);
-      setNewItemName(""); setNewItemQuantity("1"); setNewItemUnit("units");
+      setNewItemName(""); setNewItemQuantity("1"); setNewItemUnit("item");
       setNewItemCategory("Equipment"); setNewItemThreshold("");
       loadData();
     } catch (e) {
@@ -185,15 +226,14 @@ export default function SuppliesScreen() {
         userId: user.uid,
         hiveId: newTreatmentHiveId,
         hiveName: newTreatmentHiveName,
-        treatmentName: newTreatmentName,
+        treatmentName: newTreatmentName.trim(),
         dateApplied: newTreatmentDate,
         dateToRemove: newTreatmentRemoveDate || null,
         notes: newTreatmentNotes || null,
         createdAt: serverTimestamp(),
       });
       setShowAddTreatment(false);
-      setNewTreatmentName(""); setNewTreatmentDate(new Date().toISOString().split("T")[0]);
-      setNewTreatmentRemoveDate(""); setNewTreatmentNotes("");
+      setNewTreatmentName(""); setNewTreatmentRemoveDate(""); setNewTreatmentNotes("");
       if (!hiveId) { setNewTreatmentHiveId(""); setNewTreatmentHiveName(""); }
       loadData();
     } catch (e) {
@@ -215,15 +255,24 @@ export default function SuppliesScreen() {
   };
 
   const S = makeStyles(theme);
-  const lowStockItems = inventory.filter(
+
+  // Group inventory by category
+  const grouped = CATEGORIES.reduce((acc, cat) => {
+    const items = inventory.filter((i) => i.category === cat);
+    if (items.length) acc[cat] = items;
+    return acc;
+  }, {} as Record<string, InventoryItem[]>);
+
+  const lowStockCount = inventory.filter(
     (i) => i.lowStockThreshold != null && i.quantity <= i.lowStockThreshold
-  );
+  ).length;
 
   if (loading) {
     return (
-      <View style={{ flex: 1, backgroundColor: theme.bg, justifyContent: "center", alignItems: "center" }}>
-        <ActivityIndicator color={theme.honey} size="large" />
-      </View>
+      <SafeAreaView style={S.page}>
+        <NavBar />
+        <ActivityIndicator color={theme.honey} style={{ marginTop: 40 }} />
+      </SafeAreaView>
     );
   }
 
@@ -234,158 +283,177 @@ export default function SuppliesScreen() {
         {/* Header */}
         <View style={S.header}>
           <Text style={S.title}>🧰 Supplies</Text>
-          {hiveName && <Text style={S.hiveFilter}>Filtering: {hiveName}</Text>}
+          {hiveName && <Text style={S.hiveFilter}>Filtered: {hiveName}</Text>}
         </View>
 
         {/* Low stock alert */}
-        {lowStockItems.length > 0 && activeTab === "inventory" && (
+        {lowStockCount > 0 && (
           <View style={S.alertBanner}>
-            <Text style={S.alertText}>⚠️ {lowStockItems.length} item{lowStockItems.length > 1 ? "s" : ""} running low!</Text>
+            <Text style={S.alertText}>⚠️ {lowStockCount} item{lowStockCount > 1 ? "s" : ""} running low!</Text>
           </View>
         )}
 
         {/* Tabs */}
         <View style={S.tabs}>
-          <Pressable
-            style={[S.tab, activeTab === "inventory" && S.tabActive]}
-            onPress={() => setActiveTab("inventory")}
-          >
+          <Pressable style={[S.tab, activeTab === "inventory" && S.tabActive]} onPress={() => setActiveTab("inventory")}>
             <Text style={[S.tabText, activeTab === "inventory" && S.tabTextActive]}>📦 Inventory</Text>
           </Pressable>
-          <Pressable
-            style={[S.tab, activeTab === "treatments" && S.tabActive]}
-            onPress={() => setActiveTab("treatments")}
-          >
-            <Text style={[S.tabText, activeTab === "treatments" && S.tabTextActive]}>🧪 Treatments</Text>
+          <Pressable style={[S.tab, activeTab === "treatments" && S.tabActive]} onPress={() => setActiveTab("treatments")}>
+            <Text style={[S.tabText, activeTab === "treatments" && S.tabTextActive]}>💉 Treatments</Text>
           </Pressable>
         </View>
 
-        {/* ── Inventory Tab ── */}
-        {activeTab === "inventory" && (
-          <ScrollView contentContainerStyle={S.tabContent}>
-            <Pressable onPress={() => setShowAddItem(true)} style={S.addButton}>
-              <Text style={S.addButtonText}>+ Add Item</Text>
-            </Pressable>
-
-            {inventory.length === 0 && (
-              <View style={S.emptyBox}>
-                <Text style={S.emptyEmoji}>📦</Text>
-                <Text style={S.emptyText}>No inventory yet</Text>
-                <Text style={S.emptyHint}>Track your equipment, feed, and supplies</Text>
-              </View>
-            )}
-
-            {CATEGORIES.map((cat) => {
-              const items = inventory.filter((i) => i.category === cat);
-              if (items.length === 0) return null;
-              return (
-                <View key={cat}>
-                  <Text style={S.catLabel}>{cat.toUpperCase()}</Text>
-                  {items.map((item) => {
-                    const isLow = item.lowStockThreshold != null && item.quantity <= item.lowStockThreshold;
-                    return (
-                      <View key={item.id} style={[S.itemCard, isLow && S.itemCardLow]}>
-                        <View style={{ flex: 1 }}>
-                          <Text style={S.itemName}>{item.name}</Text>
-                          {isLow && <Text style={S.lowStockTag}>⚠️ Low stock</Text>}
+        <ScrollView contentContainerStyle={S.tabContent}>
+          {/* ── Inventory Tab ── */}
+          {activeTab === "inventory" && (
+            <>
+              <Pressable style={S.addButton} onPress={() => setShowAddItem(true)}>
+                <Text style={S.addButtonText}>+ Add Item</Text>
+              </Pressable>
+              {Object.keys(grouped).length === 0 ? (
+                <View style={S.emptyBox}>
+                  <Text style={S.emptyEmoji}>📦</Text>
+                  <Text style={S.emptyText}>No inventory yet</Text>
+                  <Text style={S.emptyHint}>Add hive equipment, feed, and protective gear to track your supplies.</Text>
+                </View>
+              ) : (
+                Object.entries(grouped).map(([cat, items]) => (
+                  <View key={cat}>
+                    <Text style={S.catLabel}>{cat.toUpperCase()}</Text>
+                    {items.map((item) => {
+                      const isLow = item.lowStockThreshold != null && item.quantity <= item.lowStockThreshold;
+                      return (
+                        <View key={item.id} style={[S.itemCard, isLow && S.itemCardLow]}>
+                          <View style={{ flex: 1 }}>
+                            <Text style={S.itemName}>{item.name}</Text>
+                            {isLow && <Text style={S.lowStockTag}>⚠️ Low stock</Text>}
+                          </View>
+                          <Text style={[S.itemQty, isLow && S.itemQtyLow]}>
+                            {item.quantity} {item.unit}
+                          </Text>
+                          <Pressable style={S.deleteBtn} onPress={() => deleteInventoryItem(item.id)}>
+                            <Text style={S.deleteBtnText}>🗑️</Text>
+                          </Pressable>
                         </View>
-                        <Text style={[S.itemQty, isLow && S.itemQtyLow]}>
-                          {item.quantity} {item.unit}
-                        </Text>
-                        <Pressable onPress={() => deleteInventoryItem(item.id)} style={S.deleteBtn}>
-                          <Text style={S.deleteBtnText}>🗑️</Text>
-                        </Pressable>
-                      </View>
-                    );
-                  })}
+                      );
+                    })}
+                  </View>
+                ))
+              )}
+            </>
+          )}
+
+          {/* ── Treatments Tab ── */}
+          {activeTab === "treatments" && (
+            <>
+              <Pressable style={S.addButton} onPress={() => setShowAddTreatment(true)}>
+                <Text style={S.addButtonText}>+ Log Treatment</Text>
+              </Pressable>
+              {treatments.length === 0 ? (
+                <View style={S.emptyBox}>
+                  <Text style={S.emptyEmoji}>💉</Text>
+                  <Text style={S.emptyText}>No treatments logged</Text>
+                  <Text style={S.emptyHint}>Track Varroa treatments, medications, and other hive interventions.</Text>
                 </View>
-              );
-            })}
-          </ScrollView>
-        )}
-
-        {/* ── Treatments Tab ── */}
-        {activeTab === "treatments" && (
-          <ScrollView contentContainerStyle={S.tabContent}>
-            <Pressable onPress={() => setShowAddTreatment(true)} style={S.addButton}>
-              <Text style={S.addButtonText}>+ Log Treatment</Text>
-            </Pressable>
-
-            {treatments.length === 0 && (
-              <View style={S.emptyBox}>
-                <Text style={S.emptyEmoji}>🧪</Text>
-                <Text style={S.emptyText}>No treatments logged</Text>
-                <Text style={S.emptyHint}>Track mite treatments and medications</Text>
-              </View>
-            )}
-
-            {treatments.map((t) => (
-              <View key={t.id} style={S.treatCard}>
-                <View style={S.treatHeader}>
-                  <Text style={S.treatName}>{t.treatmentName}</Text>
-                  <Pressable onPress={() => deleteTreatment(t.id)} style={S.deleteBtn}>
-                    <Text style={S.deleteBtnText}>🗑️</Text>
-                  </Pressable>
-                </View>
-                {!hiveId && <Text style={S.treatHive}>🏠 {t.hiveName}</Text>}
-                <Text style={S.treatDate}>Applied: {t.dateApplied}</Text>
-                {t.dateToRemove && <Text style={S.treatDate}>Remove by: {t.dateToRemove}</Text>}
-                {t.notes && <Text style={S.treatNotes}>{t.notes}</Text>}
-              </View>
-            ))}
-          </ScrollView>
-        )}
+              ) : (
+                treatments.map((t) => (
+                  <View key={t.id} style={S.treatCard}>
+                    <View style={S.treatHeader}>
+                      <Text style={S.treatName}>{t.treatmentName}</Text>
+                      <Pressable onPress={() => deleteTreatment(t.id)}>
+                        <Text style={S.deleteBtnText}>🗑️</Text>
+                      </Pressable>
+                    </View>
+                    <Text style={S.treatHive}>🏠 {t.hiveName}</Text>
+                    <Text style={S.treatDate}>Applied: {t.dateApplied}</Text>
+                    {t.dateToRemove && <Text style={S.treatDate}>Remove by: {t.dateToRemove}</Text>}
+                    {t.notes && <Text style={S.treatNotes}>{t.notes}</Text>}
+                  </View>
+                ))
+              )}
+            </>
+          )}
+        </ScrollView>
       </View>
 
-      {/* ── Add Item Modal ── */}
+      {/* ── Add Inventory Item Modal ── */}
       <Modal visible={showAddItem} animationType="slide" transparent>
-        <View style={S.modalOverlay}>
+        <ScrollView contentContainerStyle={S.modalOverlay}>
           <View style={S.modalCard}>
-            <Text style={S.modalTitle}>Add Inventory Item</Text>
-            <TextInput
-              style={S.input}
-              placeholder="Item name"
-              placeholderTextColor={theme.textMuted}
-              value={newItemName}
-              onChangeText={setNewItemName}
-            />
-            <View style={S.inputRow}>
-              <TextInput
-                style={[S.input, { flex: 1 }]}
-                placeholder="Quantity"
-                placeholderTextColor={theme.textMuted}
-                value={newItemQuantity}
-                onChangeText={setNewItemQuantity}
-                keyboardType="numeric"
-              />
-              <TextInput
-                style={[S.input, { flex: 1 }]}
-                placeholder="Unit (units, lbs, gal...)"
-                placeholderTextColor={theme.textMuted}
-                value={newItemUnit}
-                onChangeText={setNewItemUnit}
-              />
-            </View>
-            <TextInput
-              style={S.input}
-              placeholder="Low stock alert at quantity (optional)"
-              placeholderTextColor={theme.textMuted}
-              value={newItemThreshold}
-              onChangeText={setNewItemThreshold}
-              keyboardType="numeric"
-            />
-            <Text style={S.pickerLabel}>Category</Text>
+            <Text style={S.modalTitle}>Add Item</Text>
+
+            {/* Category first — drives equipment suggestions */}
+            <Text style={S.pickerLabel}>CATEGORY</Text>
             <View style={S.chipRow}>
               {CATEGORIES.map((cat) => (
                 <Pressable
                   key={cat}
-                  onPress={() => setNewItemCategory(cat)}
+                  onPress={() => {
+                    setNewItemCategory(cat);
+                    setNewItemName(""); // reset name when category changes
+                  }}
                   style={[S.chip, newItemCategory === cat && S.chipSelected]}
                 >
                   <Text style={[S.chipText, newItemCategory === cat && S.chipTextSelected]}>{cat}</Text>
                 </Pressable>
               ))}
             </View>
+
+            {/* Equipment suggestions */}
+            <Text style={S.pickerLabel}>ITEM NAME — tap to select or type below</Text>
+            <View style={S.chipRow}>
+              {equipmentSuggestions.map((eq) => (
+                <Pressable
+                  key={eq}
+                  onPress={() => setNewItemName(eq === "Other" ? "" : eq)}
+                  style={[S.chip, newItemName === eq && S.chipSelected]}
+                >
+                  <Text style={[S.chipText, newItemName === eq && S.chipTextSelected]}>{eq}</Text>
+                </Pressable>
+              ))}
+            </View>
+            <TextInput
+              style={S.input}
+              placeholder="Or type custom item name..."
+              placeholderTextColor={theme.textMuted}
+              value={newItemName}
+              onChangeText={setNewItemName}
+            />
+
+            {/* Quantity + Unit */}
+            <Text style={S.pickerLabel}>QUANTITY</Text>
+            <TextInput
+              style={S.input}
+              placeholder="Quantity"
+              placeholderTextColor={theme.textMuted}
+              value={newItemQuantity}
+              onChangeText={setNewItemQuantity}
+              keyboardType="numeric"
+            />
+
+            <Text style={S.pickerLabel}>UNIT</Text>
+            <View style={S.chipRow}>
+              {UNIT_OPTIONS.map((u) => (
+                <Pressable
+                  key={u}
+                  onPress={() => setNewItemUnit(u)}
+                  style={[S.chip, newItemUnit === u && S.chipSelected]}
+                >
+                  <Text style={[S.chipText, newItemUnit === u && S.chipTextSelected]}>{u}</Text>
+                </Pressable>
+              ))}
+            </View>
+
+            <Text style={S.pickerLabel}>LOW STOCK ALERT (optional)</Text>
+            <TextInput
+              style={S.input}
+              placeholder="Alert when quantity drops to..."
+              placeholderTextColor={theme.textMuted}
+              value={newItemThreshold}
+              onChangeText={setNewItemThreshold}
+              keyboardType="numeric"
+            />
+
             <View style={S.modalButtons}>
               <Pressable onPress={() => setShowAddItem(false)} style={S.cancelButton}>
                 <Text style={S.cancelText}>Cancel</Text>
@@ -395,7 +463,7 @@ export default function SuppliesScreen() {
               </Pressable>
             </View>
           </View>
-        </View>
+        </ScrollView>
       </Modal>
 
       {/* ── Add Treatment Modal ── */}
@@ -406,7 +474,7 @@ export default function SuppliesScreen() {
 
             {!hiveId && (
               <>
-                <Text style={S.pickerLabel}>Select Hive</Text>
+                <Text style={S.pickerLabel}>SELECT HIVE</Text>
                 <View style={S.chipRow}>
                   {hives.map((h) => (
                     <Pressable
@@ -421,7 +489,7 @@ export default function SuppliesScreen() {
               </>
             )}
 
-            <Text style={S.pickerLabel}>Treatment</Text>
+            <Text style={S.pickerLabel}>TREATMENT</Text>
             <View style={S.chipRow}>
               {COMMON_TREATMENTS.map((t) => (
                 <Pressable
@@ -434,7 +502,7 @@ export default function SuppliesScreen() {
               ))}
             </View>
 
-            <Text style={S.pickerLabel}>Date Applied</Text>
+            <Text style={S.pickerLabel}>DATE APPLIED</Text>
             <TextInput
               style={S.input}
               placeholder="YYYY-MM-DD"
@@ -442,7 +510,7 @@ export default function SuppliesScreen() {
               value={newTreatmentDate}
               onChangeText={setNewTreatmentDate}
             />
-            <Text style={S.pickerLabel}>Remove By (optional)</Text>
+            <Text style={S.pickerLabel}>REMOVE BY (optional)</Text>
             <TextInput
               style={S.input}
               placeholder="YYYY-MM-DD"
@@ -450,7 +518,7 @@ export default function SuppliesScreen() {
               value={newTreatmentRemoveDate}
               onChangeText={setNewTreatmentRemoveDate}
             />
-            <Text style={S.pickerLabel}>Notes (optional)</Text>
+            <Text style={S.pickerLabel}>NOTES (optional)</Text>
             <TextInput
               style={[S.input, S.notesInput]}
               placeholder="Dosage, method, observations..."
@@ -495,7 +563,7 @@ function makeStyles(theme: ReturnType<typeof useAppTheme>) {
     emptyBox: { alignItems: "center", marginTop: 40 },
     emptyEmoji: { fontSize: 48, marginBottom: 12 },
     emptyText: { color: theme.textPrimary, fontWeight: "800", fontSize: theme.fontMD },
-    emptyHint: { color: theme.textMuted, fontSize: theme.fontSM, marginTop: 6 },
+    emptyHint: { color: theme.textMuted, fontSize: theme.fontSM, marginTop: 6, textAlign: "center" },
     catLabel: { color: theme.textMuted, fontSize: theme.fontXS, fontWeight: "800", letterSpacing: 1.5, marginBottom: 8, marginTop: theme.spaceMD },
     itemCard: { backgroundColor: theme.bgCard, borderRadius: theme.radiusMD, padding: theme.spaceMD, flexDirection: "row", alignItems: "center", marginBottom: 8, borderWidth: 1, borderColor: theme.border },
     itemCardLow: { borderColor: theme.warning },

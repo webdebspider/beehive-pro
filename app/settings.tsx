@@ -137,7 +137,7 @@ export default function Settings() {
           </View>
         </View>
 
-        {/* ── What's in the app ── */}
+        {/* ── Features ── */}
         <Text style={S.sectionLabel}>FEATURES</Text>
         <View style={S.infoCard}>
           {[
@@ -150,8 +150,10 @@ export default function Settings() {
             "🌿 Forage & environment mapping",
             "📊 Hive health charts",
             "☁️ Offline sync",
-          ].map((item) => (
-            <Text key={item} style={S.comingSoonItem}>{item}</Text>
+            "🔔 Inspection reminders",
+            "🧰 Equipment & supplies tracker",
+          ].map((item, i, arr) => (
+            <Text key={item} style={[S.featureItem, i === arr.length - 1 && { borderBottomWidth: 0 }]}>{item}</Text>
           ))}
         </View>
 
@@ -159,12 +161,11 @@ export default function Settings() {
         <Text style={S.sectionLabel}>COMING SOON</Text>
         <View style={S.infoCard}>
           {[
-            "🔔 Inspection reminders",
             "🎥 Video mentor chat",
             "🌱 AI plant identification",
             "📍 Hive location sharing",
-          ].map((item) => (
-            <Text key={item} style={S.comingSoonItem}>{item}</Text>
+          ].map((item, i, arr) => (
+            <Text key={item} style={[S.featureItem, i === arr.length - 1 && { borderBottomWidth: 0 }]}>{item}</Text>
           ))}
         </View>
 
@@ -201,10 +202,10 @@ function makeStyles(theme: ReturnType<typeof useAppTheme>) {
     fontPreviewBody: { color: theme.textSecondary, lineHeight: 24 },
     fontPreviewSmall: { color: theme.textMuted },
     infoCard: { backgroundColor: theme.bgCard, borderRadius: theme.radiusMD, borderWidth: 1, borderColor: theme.border, overflow: "hidden" },
-    infoRow: { flexDirection: "row", justifyContent: "space-between", padding: theme.spaceMD },
-    infoLabel: { color: theme.textMuted, fontSize: theme.fontSM },
-    infoValue: { color: theme.textPrimary, fontWeight: "700", fontSize: theme.fontSM },
+    infoRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: theme.spaceMD, gap: 12 },
+    infoLabel: { color: theme.textMuted, fontSize: theme.fontSM, flex: 1 },
+    infoValue: { color: theme.textPrimary, fontWeight: "700", fontSize: theme.fontSM, flex: 2, textAlign: "right" },
     infoDivider: { height: 1, backgroundColor: theme.border },
-    comingSoonItem: { color: theme.textSecondary, fontSize: theme.fontSM, padding: theme.spaceMD, borderBottomWidth: 1, borderBottomColor: theme.border },
+    featureItem: { color: theme.textSecondary, fontSize: theme.fontSM, padding: theme.spaceMD, borderBottomWidth: 1, borderBottomColor: theme.border },
   });
 }
