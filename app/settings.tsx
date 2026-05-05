@@ -153,6 +153,7 @@ export default function Settings() {
             "🔔 Inspection reminders",
             "🧰 Equipment & supplies tracker",
             "🏛️ Hive registration helper",
+            "🏥 Health & disease log",
           ].map((item, i, arr) => (
             <Text key={item} style={[S.featureItem, i === arr.length - 1 && { borderBottomWidth: 0 }]}>{item}</Text>
           ))}
