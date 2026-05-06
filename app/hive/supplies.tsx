@@ -16,10 +16,9 @@ import {
   deleteDoc,
   doc,
   getDocs,
-  orderBy,
   query,
   serverTimestamp,
-  where,
+  where
 } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import {
@@ -74,8 +73,7 @@ const EQUIPMENT_BY_CATEGORY: Record<string, string[]> = {
     "Mouse guard", "Varroa sticky board", "Alcohol wash jar", "Other",
   ],
   Feed: [
-    "Sugar (white)", "Sugar (powdered)", "High fructose corn syrup",
-    "Pollen substitute patty", "Dry pollen substitute", "Fondant",
+    "1-1 Sugar-water (granulated only)", "2-1 Sugar-water (granulated only)","Pollen substitute patty", "Dry pollen substitute", "Fondant",
     "Candy board", "ProSweet", "Other",
   ],
   Treatments: [
