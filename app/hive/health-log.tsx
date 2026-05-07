@@ -440,6 +440,7 @@ export default function HealthLogScreen() {
                 const color = SEVERITY_COLORS[condition.severity];
                 return (
                   <View key={condition.id} style={[S.conditionCard, { borderLeftColor: color }]}>
+                    {/* Header row — emoji + name + badges only */}
                     <View style={S.conditionHeader}>
                       <Text style={S.conditionEmoji}>{condition.emoji}</Text>
                       <View style={{ flex: 1 }}>
@@ -455,9 +456,6 @@ export default function HealthLogScreen() {
                           )}
                         </View>
                       </View>
-                      <Pressable onPress={() => openLogModal(condition)} style={S.logBtn}>
-                        <Text style={S.logBtnText}>Log</Text>
-                      </Pressable>
                     </View>
                     <Text style={S.conditionDesc}>{condition.description}</Text>
                     <View style={S.conditionSection}>
@@ -468,6 +466,10 @@ export default function HealthLogScreen() {
                       <Text style={S.conditionSectionLabel}>✅ Recommended action:</Text>
                       <Text style={S.conditionSectionText}>{condition.action}</Text>
                     </View>
+                    {/* Log button — full width at bottom */}
+                    <Pressable onPress={() => openLogModal(condition)} style={S.logBtn}>
+                      <Text style={S.logBtnText}>🏥 Log This Concern</Text>
+                    </Pressable>
                   </View>
                 );
               })}
@@ -565,7 +567,7 @@ function makeStyles(theme: ReturnType<typeof useAppTheme>) {
     actionCritical: { backgroundColor: "#ef444415", borderWidth: 1, borderColor: "#ef444440" },
     conditionSectionLabel: { color: theme.textPrimary, fontWeight: "800", fontSize: theme.fontXS, marginBottom: 4 },
     conditionSectionText: { color: theme.textSecondary, fontSize: theme.fontXS, lineHeight: 18 },
-    logBtn: { backgroundColor: theme.honey, paddingVertical: 6, paddingHorizontal: 14, borderRadius: theme.radiusSM },
+    logBtn: { backgroundColor: theme.honey, paddingVertical: 10, borderRadius: theme.radiusSM, alignItems: "center", marginTop: 8 },
     logBtnText: { color: theme.bg, fontWeight: "900", fontSize: theme.fontXS },
     modalOverlay: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.6)" },
     modalCard: { backgroundColor: theme.bgCard, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: theme.spaceLG, paddingBottom: 40 },
