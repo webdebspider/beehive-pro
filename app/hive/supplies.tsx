@@ -378,7 +378,19 @@ export default function SuppliesScreen() {
       <Modal visible={showAddItem} animationType="slide" transparent>
         <ScrollView contentContainerStyle={S.modalOverlay}>
           <View style={S.modalCard}>
-            <Text style={S.modalTitle}>Add Item</Text>
+            {/* Modal header with title + X close button */}
+            <View style={S.modalHeader}>
+              <Text style={S.modalTitle}>Add Item</Text>
+              <Pressable
+                onPress={() => setShowAddItem(false)}
+                style={S.closeButton}
+                hitSlop={10}
+                accessibilityLabel="Close"
+                accessibilityRole="button"
+              >
+                <Text style={S.closeButtonText}>✕</Text>
+              </Pressable>
+            </View>
 
             {/* Category first — drives equipment suggestions */}
             <Text style={S.pickerLabel}>CATEGORY</Text>
@@ -579,7 +591,10 @@ function makeStyles(theme: ReturnType<typeof useAppTheme>) {
     treatNotes: { color: theme.textSecondary, fontSize: theme.fontXS, marginTop: 6, fontStyle: "italic" },
     modalOverlay: { flexGrow: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.6)" },
     modalCard: { backgroundColor: theme.bgCard, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: theme.spaceLG, paddingBottom: 40 },
+    modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: theme.spaceMD },
     modalTitle: { color: theme.textPrimary, fontSize: theme.fontLG, fontWeight: "900", marginBottom: theme.spaceMD },
+    closeButton: { width: 36, height: 36, borderRadius: 18, backgroundColor: theme.bgCardAlt, borderWidth: 1, borderColor: theme.border, alignItems: "center", justifyContent: "center", marginBottom: theme.spaceMD },
+    closeButtonText: { color: theme.textPrimary, fontSize: 18, fontWeight: "900", lineHeight: 20 },
     input: { backgroundColor: theme.bgInput, color: theme.textPrimary, borderWidth: 1, borderColor: theme.border, borderRadius: theme.radiusMD, padding: 12, marginBottom: 12, fontSize: theme.fontSM },
     notesInput: { height: 80, textAlignVertical: "top" },
     inputRow: { flexDirection: "row", gap: 10 },
