@@ -60,6 +60,7 @@ export default function ForageMapScreen() {
   const [entries, setEntries] = useState<ForageEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<ForageEntry | null>(null);
+  const [mapType, setMapType] = useState<'standard' | 'satellite' | 'hybrid'>('standard');
 
   useEffect(() => { loadEntries(); }, [user]);
 
@@ -169,6 +170,7 @@ export default function ForageMapScreen() {
           <MapView
             style={S.map}
             initialRegion={initialRegion}
+            mapType={mapType}
             onPress={() => setSelected(null)}
           >
             {mappableEntries.map((entry) => (
@@ -197,6 +199,21 @@ export default function ForageMapScreen() {
             ))}
           </MapView>
         )}
+
+        {/* Map type toggle */}
+        <View style={S.mapTypeToggle}>
+          {(['standard', 'satellite', 'hybrid'] as const).map((type) => (
+            <Pressable
+              key={type}
+              onPress={() => setMapType(type)}
+              style={[S.mapTypeBtn, mapType === type && S.mapTypeBtnActive]}
+            >
+              <Text style={[S.mapTypeBtnText, mapType === type && S.mapTypeBtnTextActive]}>
+                {type === 'standard' ? '🗺️' : type === 'satellite' ? '🛰️' : '🌍'}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
 
         <Pressable style={S.fab} onPress={() => router.push("/hive/forage-log")}>
           <Text style={S.fabText}>+ Log Forage</Text>
@@ -283,6 +300,11 @@ function makeStyles(theme: ReturnType<typeof useAppTheme>) {
     detailMeta: { flexDirection: "row", justifyContent: "space-between", marginBottom: 6 },
     detailMetaText: { color: theme.textMuted, fontSize: theme.fontXS },
     detailNotes: { color: theme.textSecondary, fontSize: theme.fontXS, lineHeight: 18 },
+    mapTypeToggle: { position: "absolute", top: 16, right: 16, backgroundColor: "rgba(0,0,0,0.6)", borderRadius: 12, padding: 4, gap: 4 },
+    mapTypeBtn: { padding: 8, borderRadius: 8, alignItems: "center" },
+    mapTypeBtnActive: { backgroundColor: "rgba(255,255,255,0.3)" },
+    mapTypeBtnText: { fontSize: 18, opacity: 0.7 },
+    mapTypeBtnTextActive: { opacity: 1 },
     emptyBox: { position: "absolute", top: "40%", left: 0, right: 0, alignItems: "center" },
     emptyEmoji: { fontSize: 40, marginBottom: 8 },
     emptyText: { color: theme.textPrimary, fontWeight: "800", fontSize: theme.fontMD },
