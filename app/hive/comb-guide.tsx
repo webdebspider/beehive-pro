@@ -20,6 +20,21 @@
  * or the image won't load.
  *
  * ============================================================================
+ * ROUTE FIX (2026-05-08, later in the day):
+ * ============================================================================
+ * Submit-back navigation was pointing at "/hive/inspection" — a path that
+ * doesn't exist as a route file in the app. TypeScript's typed routes
+ * surfaced this as an error after the image-data refactor triggered a
+ * project re-analysis (the error was always there; just hidden until TS
+ * re-checked the file). Fixed to "/hive/inspection/add", which is the
+ * actual route file that handles both new inspections (no inspectionId)
+ * and continued ones (with inspectionId param). See handleSubmit() below.
+ *
+ * Pre-fix runtime behavior: navigation likely silently failed or fell
+ * through to a 404. Submit button effectively didn't work correctly.
+ * This fix restores the intended flow.
+ *
+ * ============================================================================
  * BEGINNER MODE FEATURES:
  * ============================================================================
  *  - Cards pulse/glow with amber animation
@@ -350,10 +365,17 @@ export default function CombGuideScreen() {
       notes: selectedFindings.map((f) => f.notes).filter(Boolean),
     };
 
-    // Navigate back to inspection screen with the payload
-    // hiveId and inspectionId pass through unchanged
+    // Navigate back to inspection screen with the payload.
+    // hiveId and inspectionId pass through unchanged.
+    //
+    // ROUTE FIX (2026-05-08): destination is "/hive/inspection/add", not
+    // "/hive/inspection". The /add screen handles both new inspections
+    // (no inspectionId) and continued/edited ones (with inspectionId param).
+    // TypeScript's typed routes flagged the previous "/hive/inspection" as
+    // invalid — that path doesn't exist as a route file in the app.
+    // See file header for full notes.
     router.replace({
-      pathname: "/hive/inspection",
+      pathname: "/hive/inspection/add",
       params: {
         hiveId: params.hiveId,
         inspectionId: params.inspectionId,
