@@ -1,19 +1,61 @@
+// firestore.rules
+//
+// Beehive Pro+ — Firestore security rules
+//
+// Strategy:
+// 1. Every read/write requires authentication.
+// 2. Top-level "hives" docs must include a userId field equal to the
+//    requester's auth.uid.
+// 3. Subcollections under a hive (inspections, forage logs, etc.) inherit
+//    ownership by looking up the parent hive's userId.
+//    Note: get() calls count as billable reads; for beta scale this is fine.
+//
+// Deploy from project root:
+//   firebase deploy --only firestore:rules
+//
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // This rule allows anyone with your Firestore database reference to view, edit,
-    // and delete all data in your Firestore database. It is useful for getting
-    // started, but it is configured to expire after 30 days because it
-    // leaves your app open to attackers. At that time, all client
-    // requests to your Firestore database will be denied.
-    //
-    // Make sure to write security rules for your app before that time, or else
-    // all client requests to your Firestore database will be denied until you Update
-    // your rules
-    match /{document=**} {
-      allow read, write: if request.time < timestamp.date(2026, 5, 28);
+    // -----------------------------------------------------------------
+    // HIVES — top-level collection
+    // Each hive document must have a `userId` field set to the owner's uid.
+    // -----------------------------------------------------------------
+    match /hives/{hiveId} {
+
+      // Read existing hive: must be authenticated AND own it.
+      allow read: if request.auth != null
+                  && resource.data.userId == request.auth.uid;
+
+      // Create new hive: must be authenticated AND stamp own uid on it.
+      // This blocks a malicious client from creating a hive owned by
+      // someone else.
+      allow create: if request.auth != null
+                    && request.resource.data.userId == request.auth.uid;
+
+      // Update / delete: must own the existing hive.
+      // Also block changing userId to someone else (ownership theft).
+      allow update, delete: if request.auth != null
+                            && resource.data.userId == request.auth.uid
+                            && request.resource.data.userId == request.auth.uid;
+
+      // ---------------------------------------------------------------
+      // SUBCOLLECTIONS under a hive
+      // (inspections, forage logs, supplies-history, etc.)
+      // Ownership inherited from the parent hive's userId.
+      // ---------------------------------------------------------------
+      match /{subcoll}/{docId} {
+        allow read, write: if request.auth != null
+          && get(/databases/$(database)/documents/hives/$(hiveId)).data.userId
+             == request.auth.uid;
+      }
     }
+
+    // -----------------------------------------------------------------
+    // DEFAULT DENY — anything else is blocked.
+    // If you add a new top-level collection later (e.g. /users, /reminders
+    // at root, /forageMap), you MUST add an explicit rule for it here.
+    // -----------------------------------------------------------------
   }
 }
