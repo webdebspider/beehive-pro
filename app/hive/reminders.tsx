@@ -1,11 +1,37 @@
 /**
  * app/hive/reminders.tsx
- *
+ * ════════════════════════════════════════════════════════════════════════════
  * Inspection Reminder Settings.
  * Global default interval + per-hive overrides.
  * Saves settings to Firestore and schedules local notifications.
- * 
- * 
+ *
+ * ─── 2026-05-11 SAVE-FLOW HARDENING UPDATE ────────────────────────────────
+ * Symptom observed during iOS Expo Go testing:
+ *   • User taps "Save Reminder Settings"
+ *   • Settings actually persist to Firestore correctly
+ *   • UI nonetheless shows "Error: Could not save settings. Try again."
+ *
+ * Root cause: handleSave() previously wrapped BOTH the Firestore writes AND
+ * the expo-notifications scheduling calls inside a SINGLE try/catch. When
+ * notifications failed (expected behavior in iOS Expo Go since SDK 53 — see
+ * the startup warnings about expo-notifications limitations), the catch
+ * block fired the generic "Could not save" alert even though the data had
+ * already been written to Firestore.
+ *
+ * The fix:
+ *   1. Separate data persistence (must succeed) from notification setup
+ *      (best-effort) into distinct try/catch blocks
+ *   2. Detect Expo Go via Constants.appOwnership and skip notification
+ *      operations entirely there (they don't work reliably anyway)
+ *   3. Log notification errors to the console so future debugging is easier
+ *   4. Show distinct UI messaging:
+ *      - Data save failed       → "Error: Could not save settings."
+ *      - Data saved, notifs failed → "Saved with limitations" (informative,
+ *        not alarming — settings ARE on disk)
+ *      - Everything succeeded   → "Saved! 🐝"
+ *
+ * Nothing else changed. Same UI, same data shape, same Firestore docs.
+ * ════════════════════════════════════════════════════════════════════════════
  */
 
 import { useRouter } from "expo-router";
@@ -29,6 +55,11 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+
+// expo-constants is bundled with Expo Go itself, so this is always safe.
+// Same Expo Go detection pattern we used in app/hive/voice-log.tsx.
+import Constants from "expo-constants";
+
 import NavBar from "../../components/NavBar";
 import { useAuthContext } from "../../context/AuthContext";
 import { useAppTheme } from "../../hooks/useAppTheme";
@@ -41,6 +72,15 @@ import {
   scheduleHiveReminder,
   setupNotificationChannel,
 } from "../../utils/reminders";
+
+/**
+ * Are we running inside Expo Go? If yes, expo-notifications has been
+ * neutered (per SDK 53 release notes) and we skip notification calls
+ * entirely. The user can still save reminder PREFERENCES to Firestore;
+ * the actual notification firing will happen once they're on a dev
+ * build (Firebase App Distribution Android, or future iOS dev client).
+ */
+const isExpoGo = Constants.appOwnership === "expo";
 
 // Extended interval options for per-hive overrides — includes short emergency intervals
 const HIVE_INTERVAL_OPTIONS: { value: number; label: string; tag?: string }[] = [
@@ -78,6 +118,7 @@ export default function RemindersScreen() {
     loadSettings();
   }, [user]);
 
+  // ─── loadSettings (unchanged) ──────────────────────────────────────────
   const loadSettings = async () => {
     if (!user) return;
     try {
@@ -104,21 +145,59 @@ export default function RemindersScreen() {
       });
       setHiveSettings(settings);
     } catch (e) {
-      console.log("Load reminders error:", e);
+      console.log("[reminders] Load reminders error:", e);
     } finally {
       setLoading(false);
     }
   };
 
+  // ════════════════════════════════════════════════════════════════════════
+  // ── handleSave — REWRITTEN for separation of concerns ──────────────────
+  // ════════════════════════════════════════════════════════════════════════
+  //
+  // STRUCTURE:
+  //   1. Notification setup (best-effort, non-blocking)
+  //   2. Permission check (only if globalEnabled AND not Expo Go)
+  //   3. ──── DATA WRITE — must succeed ─────
+  //   4. Per-hive: save data, then best-effort schedule
+  //   5. Report outcome based on what actually happened
+  //
+  // The whole thing is NOT wrapped in one giant try/catch anymore. Instead,
+  // notifications are wrapped in their own try blocks, and Firestore writes
+  // sit in a dedicated try that only catches DATA failures.
   const handleSave = async () => {
     if (!user) return;
     setSaving(true);
-    try {
-      await setupNotificationChannel();
 
-      if (globalEnabled) {
+    // Track whether ANY notification-related step failed so we can warn the
+    // user appropriately (without scaring them — their data is fine).
+    let notificationIssue: string | null = null;
+
+    // ── 1. Notification channel (best-effort) ─────────────────────────────
+    // On iOS this is typically a no-op. On Android it sets up the notification
+    // channel for system-level grouping. Either way, failure here shouldn't
+    // block the data save.
+    if (!isExpoGo) {
+      try {
+        await setupNotificationChannel();
+      } catch (e) {
+        console.warn("[reminders] setupNotificationChannel failed:", e);
+        notificationIssue = "notification channel setup failed";
+      }
+    } else {
+      notificationIssue = "notifications disabled in Expo Go";
+    }
+
+    // ── 2. Permission check (only if user wants reminders) ────────────────
+    // Skipped entirely in Expo Go because expo-notifications can't reliably
+    // request or honor notification permissions there.
+    if (globalEnabled && !isExpoGo) {
+      try {
         const granted = await requestNotificationPermissions();
         if (!granted) {
+          // User declined — they get a chance to enable in settings. We
+          // intentionally stop here without writing data, matching the
+          // original behavior.
           Alert.alert(
             "Permission Required",
             "Please allow notifications in your device settings to use reminders."
@@ -126,33 +205,88 @@ export default function RemindersScreen() {
           setSaving(false);
           return;
         }
+      } catch (e) {
+        console.warn("[reminders] requestNotificationPermissions failed:", e);
+        notificationIssue = "could not check notification permissions";
+        // Don't abort — proceed to save data anyway. Worst case: settings
+        // persist but notifications don't fire. Tester can re-toggle later
+        // on a dev build.
       }
+    }
 
-      await setDoc(doc(db, "userSettings", user.uid), {
-        userId: user.uid,
-        remindersEnabled: globalEnabled,
-        reminderInterval: globalInterval,
-      }, { merge: true });
+    // ── 3. DATA WRITE (must succeed — own try/catch) ─────────────────────
+    // This is the critical block. If THIS throws, we genuinely failed to
+    // save and the user should see an error. Notification issues above
+    // don't trigger this catch.
+    try {
+      // Global settings — single document keyed by user.uid
+      await setDoc(
+        doc(db, "userSettings", user.uid),
+        {
+          userId: user.uid,
+          remindersEnabled: globalEnabled,
+          reminderInterval: globalInterval,
+        },
+        { merge: true },
+      );
 
+      // ── 4. Per-hive: save data, then best-effort schedule ──────────────
+      // Each hive gets its own data write (must succeed) followed by a
+      // notification scheduling call (best-effort, wrapped in its own try).
       for (const hive of hiveSettings) {
-        await setDoc(doc(db, "hives", hive.id), {
-          reminderEnabled: hive.enabled,
-          reminderInterval: hive.interval,
-        }, { merge: true });
+        // Data write — failure here triggers the outer catch
+        await setDoc(
+          doc(db, "hives", hive.id),
+          {
+            reminderEnabled: hive.enabled,
+            reminderInterval: hive.interval,
+          },
+          { merge: true },
+        );
 
-        const effectiveInterval = hive.interval ?? globalInterval;
-        const shouldRemind = globalEnabled && hive.enabled;
-
-        if (shouldRemind) {
-          await scheduleHiveReminder(hive.id, hive.name, effectiveInterval);
-        } else {
-          await cancelHiveReminder(hive.id);
+        // Notification scheduling — best-effort, never blocks the save
+        if (!isExpoGo) {
+          const effectiveInterval = hive.interval ?? globalInterval;
+          const shouldRemind = globalEnabled && hive.enabled;
+          try {
+            if (shouldRemind) {
+              await scheduleHiveReminder(hive.id, hive.name, effectiveInterval);
+            } else {
+              await cancelHiveReminder(hive.id);
+            }
+          } catch (e) {
+            console.warn(
+              `[reminders] scheduling failed for hive ${hive.id} (${hive.name}):`,
+              e,
+            );
+            notificationIssue = "could not schedule one or more hive reminders";
+          }
         }
       }
 
-      Alert.alert("Saved! 🐝", "Reminder settings updated.");
+      // ── 5. Success path — but message depends on whether notifs worked ─
+      if (notificationIssue) {
+        // Data saved, but something notification-related fell over.
+        // Tell the user clearly that their settings ARE saved.
+        Alert.alert(
+          "Saved (with note) 🐝",
+          isExpoGo
+            ? "Your reminder settings have been saved. Note: notifications don't fire in Expo Go (limitation of the test environment), but they will work in the regular app builds."
+            : `Your reminder settings have been saved. Heads up: ${notificationIssue}. Settings are safe on disk; you can try re-saving to retry the notification setup.`,
+        );
+      } else {
+        // Clean success — same message as before.
+        Alert.alert("Saved! 🐝", "Reminder settings updated.");
+      }
     } catch (e) {
-      Alert.alert("Error", "Could not save settings. Try again.");
+      // ── Data write actually failed — this is a real error ───────────────
+      // Log the actual error to console so we can debug if this keeps
+      // happening. The user just sees the generic message.
+      console.error("[reminders] DATA SAVE failed (Firestore write threw):", e);
+      Alert.alert(
+        "Error",
+        "Could not save settings. Try again. If this keeps happening, check your internet connection.",
+      );
     } finally {
       setSaving(false);
     }
@@ -174,6 +308,9 @@ export default function RemindersScreen() {
     );
   }
 
+  // ════════════════════════════════════════════════════════════════════════
+  // ── RENDER (unchanged from previous version — only handleSave changed) ─
+  // ════════════════════════════════════════════════════════════════════════
   return (
     <SafeAreaView style={S.page}>
       <NavBar />
@@ -343,6 +480,10 @@ export default function RemindersScreen() {
     </SafeAreaView>
   );
 }
+
+// ════════════════════════════════════════════════════════════════════════════
+// ── Styles (unchanged) ─────────────────────────────────────────────────────
+// ════════════════════════════════════════════════════════════════════════════
 
 function makeStyles(theme: ReturnType<typeof useAppTheme>) {
   return StyleSheet.create({
