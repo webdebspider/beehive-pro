@@ -1,0 +1,75 @@
+# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+
+# ════════════════════════════════════════════════════════════════════════════
+# Beehive Pro+ .gitignore
+# ────────────────────────────────────────────────────────────────────────────
+# 2026-05-11: Replaced bare "/android" line with a carve-out pattern that
+# allows tracking android/app/google-services.json (needed for Firebase
+# App Distribution builds). All other /android contents remain ignored
+# (matches Expo's prebuild-regenerable workflow assumption).
+# ════════════════════════════════════════════════════════════════════════════
+
+# ── Dependencies ────────────────────────────────────────────────────────────
+node_modules/
+
+# ── Expo build artifacts ───────────────────────────────────────────────────
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# ── Native build artifacts + signing keys (NEVER commit these) ─────────────
+.kotlin/
+*.orig.*
+*.jks            # Android keystore (private key)
+*.p8             # Apple auth key
+*.p12            # PKCS#12 certificate bundle
+*.key            # generic private keys
+*.mobileprovision # iOS provisioning profile
+
+# ── Metro bundler ──────────────────────────────────────────────────────────
+.metro-health-check*
+
+# ── Debug logs ─────────────────────────────────────────────────────────────
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# ── macOS metadata ─────────────────────────────────────────────────────────
+.DS_Store
+*.pem            # PEM-encoded certs/keys
+
+# ── Local environment files (secrets per-developer) ────────────────────────
+.env*.local
+
+# ── TypeScript build cache ─────────────────────────────────────────────────
+*.tsbuildinfo
+
+# ── Expo example app scaffold ──────────────────────────────────────────────
+app-example
+
+# ════════════════════════════════════════════════════════════════════════════
+# ── Native folders (Expo prebuild-regenerable, mostly) ─────────────────────
+# ════════════════════════════════════════════════════════════════════════════
+
+# iOS — full ignore (we don't track anything in /ios right now; if you ever
+# need to track an iOS file, use the same carve-out pattern as /android below)
+/ios
+
+# Android — carve-out pattern:
+#   1. Ignore everything inside /android by default                  (line A)
+#   2. Re-allow Git to descend into /android/app/                    (line B)
+#   3. Ignore everything inside /android/app/ by default             (line C)
+#   4. Un-ignore the specific file we want tracked                   (line D)
+#
+# Git rule: you CANNOT un-ignore a file whose PARENT directory is ignored.
+# That's why we have to ignore /android/* (not /android), then carefully
+# un-ignore the path down to the file we want.
+#
+# To add another tracked Android file in the future, follow the same recipe:
+# add a `!/path/to/dir/` line to descend, then a `!/path/to/file` line to
+# un-ignore the file.
+/android/*                              # (A) ignore /android contents
+!/android/app/                          # (B) descend into /android/app/
+/android/app/*                          # (C) ignore /android/app contents
+!/android/app/google-services.json      # (D) ⭐ track Firebase config
