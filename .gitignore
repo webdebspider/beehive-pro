@@ -1,43 +1,101 @@
 # Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
 
-# dependencies
+# ════════════════════════════════════════════════════════════════════════════
+# Beehive Pro+ .gitignore
+# ────────────────────────────────────────────────────────────────────────────
+# 2026-05-11 (final): Replaced bare "/android" rule with a recursive carve-out
+# pattern that ignores all of /android EXCEPT /android/app/google-services.json
+# (Firebase config — public identifiers, safe to commit, needed for builds).
+#
+# Critical detail (learned the hard way): .gitignore syntax does NOT support
+# inline comments. Comments must be on their own lines. A line like
+#     /android/**                             # (1) recursive ignore
+# is interpreted by git as the literal pattern "/android/**[spaces]# (1)..."
+# and matches no files. All inline comments on pattern lines have been moved
+# to dedicated comment lines.
+# ════════════════════════════════════════════════════════════════════════════
+
+# ── Dependencies ────────────────────────────────────────────────────────────
 node_modules/
 
-# Expo
+# ── Expo build artifacts ───────────────────────────────────────────────────
 .expo/
 dist/
 web-build/
 expo-env.d.ts
 
-# Native
+# ── Native build artifacts + signing keys (NEVER commit these) ─────────────
+# Note: these wildcard patterns apply globally — *.jks anywhere in the repo
+# is ignored, not just in /android. Keeps signing keys safe even if someone
+# accidentally drops one outside the expected path.
 .kotlin/
 *.orig.*
+# Android keystore (private key — NEVER commit)
 *.jks
+# Apple auth key
 *.p8
+# PKCS#12 certificate bundle
 *.p12
+# generic private keys
 *.key
+# iOS provisioning profile
 *.mobileprovision
 
-# Metro
+# ── Metro bundler ──────────────────────────────────────────────────────────
 .metro-health-check*
 
-# debug
+# ── Debug logs ─────────────────────────────────────────────────────────────
 npm-debug.*
 yarn-debug.*
 yarn-error.*
 
-# macOS
+# ── macOS metadata ─────────────────────────────────────────────────────────
 .DS_Store
+# PEM-encoded certs/keys
 *.pem
 
-# local env files
+# ── Local environment files (secrets per-developer) ────────────────────────
 .env*.local
 
-# typescript
+# ── TypeScript build cache ─────────────────────────────────────────────────
 *.tsbuildinfo
 
+# ── Expo example app scaffold ──────────────────────────────────────────────
 app-example
 
-# generated native folders
+# ════════════════════════════════════════════════════════════════════════════
+# ── Native folders (Expo prebuild-regenerable, mostly) ─────────────────────
+# ════════════════════════════════════════════════════════════════════════════
+
+# iOS — full ignore (we don't track anything in /ios right now)
+# If you ever need to track an iOS file, follow the same carve-out pattern
+# as /android below (recursive ignore + targeted un-ignore lines).
 /ios
-/android
+
+# ── Android carve-out pattern (recursive) ──────────────────────────────────
+#
+# Three rules combine to ignore all of /android EXCEPT google-services.json:
+#
+#   Rule 1 (line below):  /android/**
+#       Recursive ignore of every file at any depth under /android.
+#       The ** double-asterisk is the key — single-asterisk * only matches
+#       direct children, not nested subdirectories like /android/app/src/...
+#
+#   Rule 2 (line below):  !/android/app/
+#       Un-ignore the /android/app/ directory itself, so Git can descend
+#       into it. Without this, the file-level un-ignore in Rule 3 has no
+#       effect because Git won't even look inside an ignored directory.
+#
+#   Rule 3 (line below):  !/android/app/google-services.json
+#       Un-ignore the specific file we want tracked.
+#
+# To add another tracked Android file in the future, add a `!path/` line
+# below for each parent directory not yet un-ignored, then a `!path/file`
+# line for the file itself.
+#
+# IMPORTANT: do NOT add inline # comments after the pattern lines below.
+# .gitignore treats them as part of the pattern. Comments go on their
+# own lines, like this entire block.
+/android/**
+!/android/app/
+!/android/app/google-services.json
