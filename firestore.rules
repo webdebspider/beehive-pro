@@ -4,8 +4,9 @@
 //
 // Strategy:
 // 1. Every read/write requires authentication.
-// 2. Top-level user-owned docs (hives, userSettings, inventory, treatments)
-//    must include a `userId` field equal to the requester's auth.uid.
+// 2. Top-level user-owned docs (hives, userSettings, inventory, treatments,
+//    forage, registrations) must include a `userId` field equal to the
+//    requester's auth.uid.
 // 3. Subcollections under a hive (inspections, forage logs, etc.) inherit
 //    ownership by looking up the parent hive's userId.
 //    Note: get() calls count as billable reads; for beta scale this is fine.
@@ -13,9 +14,12 @@
 //    If you add a new top-level collection later (e.g. /forageMap, /mentor),
 //    you MUST add an explicit rule for it here.
 //
-// 2026-05-12 UPDATE: added rules for userSettings, inventory, treatments —
-//   these were being queried by reminders.tsx and supplies.tsx but had no
-//   matching rule, so all reads fell through to default deny.
+// 2026-05-12 UPDATE (round 1): added rules for userSettings, inventory,
+//   treatments — these were queried by reminders.tsx and supplies.tsx but
+//   had no matching rule.
+// 2026-05-12 UPDATE (round 2): added rules for forage (queried by
+//   forage-log.tsx and forage-map.tsx) and registrations (queried by
+//   registration.tsx).
 //
 // Deploy from project root:
 //   firebase deploy --only firestore:rules
@@ -110,9 +114,39 @@ service cloud.firestore {
     }
 
     // =================================================================
+    // FORAGE — top-level collection
+    // Stores forage log entries (blooming plants, weather, GPS location).
+    // Written by forage-log.tsx handleSave() — addDoc to /forage.
+    // Read by forage-map.tsx (and elsewhere) for map markers.
+    // Each doc has `userId` (required) and `hiveId` (optional — entries
+    // can be standalone or hive-linked) fields.
+    // =================================================================
+    match /forage/{entryId} {
+      allow read:           if isOwner();
+      allow create:         if isCreatingAsOwner();
+      allow update, delete: if isOwner() && isCreatingAsOwner();
+    }
+
+    // =================================================================
+    // REGISTRATIONS — top-level collection
+    // Stores hive/apiary registration records (e.g. state apiary
+    // registration tracking, beekeeper credential info — verify exact
+    // purpose against registration.tsx).
+    // Each doc is assumed to have a `userId` field = owner's uid.
+    // If this assumption is wrong, this rule will reject reads/writes
+    // and we'll need to adjust the field name.
+    // =================================================================
+    match /registrations/{registrationId} {
+      allow read:           if isOwner();
+      allow create:         if isCreatingAsOwner();
+      allow update, delete: if isOwner() && isCreatingAsOwner();
+    }
+
+    // =================================================================
     // DEFAULT DENY — anything not matched above is blocked.
     // Add a new explicit `match` block above when introducing any new
-    // top-level collection (forageMap, mentor, etc.).
+    // top-level collection (forageMap as a separate collection,
+    // mentor, etc.).
     // =================================================================
   }
 }
