@@ -4,11 +4,18 @@
 //
 // Strategy:
 // 1. Every read/write requires authentication.
-// 2. Top-level "hives" docs must include a userId field equal to the
-//    requester's auth.uid.
+// 2. Top-level user-owned docs (hives, userSettings, inventory, treatments)
+//    must include a `userId` field equal to the requester's auth.uid.
 // 3. Subcollections under a hive (inspections, forage logs, etc.) inherit
 //    ownership by looking up the parent hive's userId.
 //    Note: get() calls count as billable reads; for beta scale this is fine.
+// 4. DEFAULT DENY — any collection not explicitly listed is blocked.
+//    If you add a new top-level collection later (e.g. /forageMap, /mentor),
+//    you MUST add an explicit rule for it here.
+//
+// 2026-05-12 UPDATE: added rules for userSettings, inventory, treatments —
+//   these were being queried by reminders.tsx and supplies.tsx but had no
+//   matching rule, so all reads fell through to default deny.
 //
 // Deploy from project root:
 //   firebase deploy --only firestore:rules
@@ -18,32 +25,45 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // =================================================================
+    // SHARED HELPERS — DRY ownership checks
     // -----------------------------------------------------------------
+    // isOwner(): the existing doc belongs to the requester.
+    //   Used for read, update, delete (where `resource` exists).
+    // isCreatingAsOwner(): the incoming doc stamps the requester's uid.
+    //   Used for create, and also on update to block ownership theft.
+    // =================================================================
+    function isOwner() {
+      return request.auth != null
+          && resource.data.userId == request.auth.uid;
+    }
+
+    function isCreatingAsOwner() {
+      return request.auth != null
+          && request.resource.data.userId == request.auth.uid;
+    }
+
+    // =================================================================
     // HIVES — top-level collection
-    // Each hive document must have a `userId` field set to the owner's uid.
-    // -----------------------------------------------------------------
+    // Each hive doc must have a `userId` field set to the owner's uid.
+    // =================================================================
     match /hives/{hiveId} {
 
-      // Read existing hive: must be authenticated AND own it.
-      allow read: if request.auth != null
-                  && resource.data.userId == request.auth.uid;
+      // Read existing hive: must own it.
+      allow read: if isOwner();
 
-      // Create new hive: must be authenticated AND stamp own uid on it.
-      // This blocks a malicious client from creating a hive owned by
-      // someone else.
-      allow create: if request.auth != null
-                    && request.resource.data.userId == request.auth.uid;
+      // Create new hive: must stamp own uid on it.
+      // Blocks malicious clients creating hives owned by someone else.
+      allow create: if isCreatingAsOwner();
 
-      // Update / delete: must own the existing hive.
-      // Also block changing userId to someone else (ownership theft).
-      allow update, delete: if request.auth != null
-                            && resource.data.userId == request.auth.uid
-                            && request.resource.data.userId == request.auth.uid;
+      // Update / delete: must own the existing hive AND keep userId
+      // unchanged (blocks ownership theft via update).
+      allow update, delete: if isOwner() && isCreatingAsOwner();
 
       // ---------------------------------------------------------------
       // SUBCOLLECTIONS under a hive
       // (inspections, forage logs, supplies-history, etc.)
-      // Ownership inherited from the parent hive's userId.
+      // Ownership inherited from the parent hive's userId via get().
       // ---------------------------------------------------------------
       match /{subcoll}/{docId} {
         allow read, write: if request.auth != null
@@ -52,10 +72,47 @@ service cloud.firestore {
       }
     }
 
-    // -----------------------------------------------------------------
-    // DEFAULT DENY — anything else is blocked.
-    // If you add a new top-level collection later (e.g. /users, /reminders
-    // at root, /forageMap), you MUST add an explicit rule for it here.
-    // -----------------------------------------------------------------
+    // =================================================================
+    // USER SETTINGS — top-level collection
+    // Stores global reminder interval + per-hive override settings.
+    // Queried by reminders.tsx loadSettings().
+    // Each doc has a `userId` field = owner's uid.
+    // =================================================================
+    match /userSettings/{settingsId} {
+      allow read:           if isOwner();
+      allow create:         if isCreatingAsOwner();
+      allow update, delete: if isOwner() && isCreatingAsOwner();
+    }
+
+    // =================================================================
+    // INVENTORY — top-level collection
+    // Stores beekeeping supplies (frames, foundation, feed, etc.).
+    // Queried by supplies.tsx loadData().
+    // Each doc has a `userId` field = owner's uid.
+    // =================================================================
+    match /inventory/{itemId} {
+      allow read:           if isOwner();
+      allow create:         if isCreatingAsOwner();
+      allow update, delete: if isOwner() && isCreatingAsOwner();
+    }
+
+    // =================================================================
+    // TREATMENTS — top-level collection
+    // Stores hive treatment records (mite treatments, feeding, etc.).
+    // Queried by supplies.tsx loadData(); may filter by hiveId too,
+    // but the rule only cares about ownership via userId.
+    // Each doc has `userId` (required) and `hiveId` (optional) fields.
+    // =================================================================
+    match /treatments/{treatmentId} {
+      allow read:           if isOwner();
+      allow create:         if isCreatingAsOwner();
+      allow update, delete: if isOwner() && isCreatingAsOwner();
+    }
+
+    // =================================================================
+    // DEFAULT DENY — anything not matched above is blocked.
+    // Add a new explicit `match` block above when introducing any new
+    // top-level collection (forageMap, mentor, etc.).
+    // =================================================================
   }
 }
