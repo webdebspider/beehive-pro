@@ -35,6 +35,56 @@
  * This fix restores the intended flow.
  *
  * ============================================================================
+ * PARAM-NAME FIX (2026-05-13) — fixes Android-reported "Missing Hive" alert:
+ * ============================================================================
+ * SYMPTOM: After tapping "🔍 Comb" from a hive detail screen, selecting
+ *          findings, and submitting, the inspection/add screen alerted
+ *          "Missing Hive: No hive ID was provided."
+ *
+ * ROOT CAUSE: Two independent param-name mismatches in this file.
+ *
+ *  (1) RECEIVE: app/hive/[id].tsx line 116 sends `params: { id: hiveId }`,
+ *      passing the value under the key `id` (Expo Router convention,
+ *      matching the [id].tsx dynamic segment name). This file was reading
+ *      `params.hiveId` — which was therefore always undefined when entering
+ *      from the hive detail screen.
+ *
+ *  (2) FORWARD: This file was forwarding to inspection/add as `hiveId:
+ *      params.hiveId`. But app/hive/inspection/add.tsx reads `id` from its
+ *      own useLocalSearchParams (then converts to a local `hiveId`).
+ *      So even if (1) had been working, (2) would have dropped the value
+ *      on the floor anyway.
+ *
+ * FIX:
+ *  (1) Accept EITHER `id` OR `hiveId` on input. Most screens in this
+ *      project follow the `id` convention ([id].tsx, quick, add, voice-log,
+ *      forage-log, health-log), but supplies and a future edit-flow caller
+ *      use `hiveId`. Accepting either keeps this screen robust to both
+ *      callers without breaking anything that already works.
+ *  (2) Forward as `id` (not `hiveId`), because inspection/add.tsx reads
+ *      `id`. This is the single name that travels cleanly through the
+ *      whole chain.
+ *
+ * NO BEHAVIOR CHANGE to any other screen — all changes scoped to this file.
+ *
+ * ============================================================================
+ * SEPARATE OBSERVATION (not fixed here — flag for later):
+ * ============================================================================
+ * The `combFindingsJson` payload forwarded below is NOT currently consumed
+ * by inspection/add.tsx (which only reads id/queen/brood/notes). So even
+ * with this hiveId fix in place, the user's comb-guide selections won't
+ * auto-merge into the new inspection's form fields. They'll save an
+ * inspection without their selections being prefilled.
+ *
+ * If/when we want to wire that up, options are either:
+ *   (a) Update inspection/add.tsx to parse combFindingsJson and merge
+ *       the array fields into its initial state, OR
+ *   (b) Flatten the payload here and send queen/brood/notes directly
+ *       (drops the multi-select richness — only the first value of each).
+ *
+ * Out of scope for this fix; documenting so we don't forget it exists.
+ *
+ * ============================================================================
  * BEGINNER MODE FEATURES:
  * ============================================================================
  *  - Cards pulse/glow with amber animation
@@ -236,10 +286,31 @@ const FINDINGS: Finding[] = [
 
 export default function CombGuideScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ hiveId?: string; inspectionId?: string }>();
+
+  // --------------------------------------------------------------------------
+  // PARAM HANDLING (see "PARAM-NAME FIX" note in file header for full context)
+  // --------------------------------------------------------------------------
+  // Accept EITHER `id` OR `hiveId` on input.
+  //   - `id` is what app/hive/[id].tsx passes (Expo Router convention, also
+  //     used by quick/add/voice-log/forage-log/health-log).
+  //   - `hiveId` is the explicit-name form used by supplies and reserved for
+  //     any future caller that prefers clarity over convention.
+  // Either name is normalized to the local `hiveId` variable below.
+  const params = useLocalSearchParams<{
+    id?: string;
+    hiveId?: string;
+    inspectionId?: string;
+  }>();
+
+  // Normalize: prefer `id` (the project convention), fall back to `hiveId`.
+  // Cast to string at the boundary so downstream consumers don't have to
+  // re-handle the string/string[] union that useLocalSearchParams returns.
+  const hiveId = ((params.id ?? params.hiveId) ?? "") as string;
+  const inspectionId = (params.inspectionId ?? "") as string;
+
   const theme = useAppTheme();
   const { settings } = useSettingsContext();
-  const isBeginner = settings?.uiMode === "beginner";
+  const isBeginner = settings?.appMode === "beginner";
 
   // Track which findings the user has selected (multi-select)
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -357,6 +428,11 @@ export default function CombGuideScreen() {
 
     // Build a payload with the selected findings' details (combFinding, queen, brood, notes)
     // The inspection screen will merge these into the current inspection record.
+    //
+    // SEPARATE TODO (documented in file header): inspection/add.tsx does not
+    // currently parse `combFindingsJson`, so this payload is forwarded but
+    // not yet consumed. Keeping it in place so the wiring exists for when
+    // the consumer is added.
     const selectedFindings = FINDINGS.filter((f) => selected.has(f.id));
     const payload = {
       combFindings: selectedFindings.map((f) => f.combFinding),
@@ -374,11 +450,17 @@ export default function CombGuideScreen() {
     // TypeScript's typed routes flagged the previous "/hive/inspection" as
     // invalid — that path doesn't exist as a route file in the app.
     // See file header for full notes.
+    //
+    // PARAM-NAME FIX (2026-05-13): forward the hive id as `id`, NOT `hiveId`.
+    // inspection/add.tsx reads `id` from its own useLocalSearchParams and
+    // converts to a local `hiveId`. Sending `hiveId` here would be dropped
+    // on the floor and the save would fail with "Missing Hive: No hive ID
+    // was provided." See file header for full context.
     router.replace({
       pathname: "/hive/inspection/add",
       params: {
-        hiveId: params.hiveId,
-        inspectionId: params.inspectionId,
+        id: hiveId,
+        inspectionId,
         combFindingsJson: JSON.stringify(payload),
       },
     });
@@ -394,7 +476,7 @@ export default function CombGuideScreen() {
   // --------------------------------------------------------------------------
   return (
     <SafeAreaView style={S.page}>
-      <NavBar title="What am I seeing?" showBack showHome />
+      <NavBar />
 
       <ScrollView
         contentContainerStyle={S.content}
