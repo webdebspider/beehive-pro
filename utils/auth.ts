@@ -10,24 +10,37 @@
  * ───────────────────────────────────────────────────────────────────────
  * CHANGE HISTORY
  * ───────────────────────────────────────────────────────────────────────
- * 2026-05-13  Added changePassword(), getCurrentUserEmail(), and
- *             isGoogleProvider() to support the new Account section
- *             in settings.tsx. The Change Password flow is critical
- *             for beta testers (e.g. Nadine) who receive a temp
- *             password via an out-of-band channel (FB Messenger) and
- *             need to set their own once they're signed in — without
- *             going through the spam-folder dance of an email reset.
+ * 2026-05-13  (a) Added changePassword(), getCurrentUserEmail(), and
+ *                 isGoogleProvider() to support the new Account section
+ *                 in settings.tsx. The Change Password flow is critical
+ *                 for beta testers (e.g. Nadine) who receive a temp
+ *                 password via an out-of-band channel (FB Messenger)
+ *                 and need to set their own once they're signed in —
+ *                 without going through the spam-folder dance of an
+ *                 email reset.
  *
- *             No existing exports were modified. All previous behavior
- *             is preserved verbatim.
+ *             (b) Patched the long-standing TS2305 error on
+ *                 `getReactNativePersistence`. Firebase v10.7+ exports
+ *                 this function at RUNTIME from "firebase/auth", but
+ *                 its TypeScript types omit it. This was already an
+ *                 invisible issue in the prior version of this file;
+ *                 the runtime app worked anyway. We now isolate that
+ *                 single import onto its own line with a targeted
+ *                 @ts-ignore so the rest of the file stays type-clean.
+ *
+ *             No existing exports were modified or renamed.
  */
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
+
+// ──────────────────────────────────────────────────────────────────────────
+// FIREBASE AUTH IMPORTS
+// ──────────────────────────────────────────────────────────────────────────
+// All standard imports below are properly typed and behave as expected.
 import {
   createUserWithEmailAndPassword,
   EmailAuthProvider,
   getAuth,
-  getReactNativePersistence,
   GoogleAuthProvider,
   initializeAuth,
   reauthenticateWithCredential,
@@ -37,6 +50,23 @@ import {
   signOut,
   updatePassword,
 } from "firebase/auth";
+
+// ─── getReactNativePersistence — typed-but-not-typed ──────────────────────
+// Firebase JS SDK v10.7+ ships getReactNativePersistence at runtime from
+// the "firebase/auth" module, but it is missing from the public TypeScript
+// type declarations. This has been a known gap for over a year and the
+// Firebase team's documented workaround is exactly this: a one-line
+// @ts-ignore on the import.
+//
+// Isolating this on its own import line means the @ts-ignore suppresses
+// ONLY this one symbol — every other import above remains fully checked.
+//
+// At runtime this is identical to importing it from the same bundle as
+// initializeAuth, etc. — no behavioral difference.
+// ──────────────────────────────────────────────────────────────────────────
+// @ts-ignore — getReactNativePersistence is missing from "firebase/auth" types but exists at runtime
+import { getReactNativePersistence } from "firebase/auth";
+
 import { Platform } from "react-native";
 import { app } from "./firebase";
 
